@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1.0",
+  "twin_id": "SYNTHETIC_TWIN_001",
+  "snapshot_id": "snapshot_demo_001",
+  "state_version": 1,
+  "created_at": "2026-09-01T10:00:00Z",
+  "data_version": "synthetic-0.1.0",
+  "feature_set_version": "demo-0.1.0",
+  "features": {
+    "tumour_size_mm": 31,
+    "grade": 2,
+    "positive_nodes": 3,
+    "her2_status": null
+  },
+  "missing_fields": [
+    "her2_status"
+  ]
+}

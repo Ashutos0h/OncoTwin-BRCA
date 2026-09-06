@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oncotwin:contracts:prediction:0.1.0",
+  "title": "Prediction",
+  "description": "Provisional reconstructed baseline; see contracts/README.md.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "twin_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prediction_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "data_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "audit_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "model_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "is_mock": {
+      "type": "boolean"
+    },
+    "risk_probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "horizon_months": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "confidence": {
+      "enum": [
+        "not_assessed",
+        "low",
+        "moderate",
+        "high"
+      ]
+    },
+    "ood_flag": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "shap_values": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "feature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "feature",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schema_version",
+    "twin_id",
+    "prediction_id",
+    "snapshot_id",
+    "state_version",
+    "data_version",
+    "audit_id",
+    "created_at",
+    "model_name",
+    "model_version",
+    "is_mock",
+    "risk_probability",
+    "horizon_months",
+    "confidence",
+    "ood_flag",
+    "shap_values",
+    "warnings"
+  ],
+  "additionalProperties": false
+}

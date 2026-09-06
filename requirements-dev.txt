@@ -1,0 +1,3 @@
+jsonschema[format]==4.25.1
+pytest==8.4.2
+-r backend/requirements.txt

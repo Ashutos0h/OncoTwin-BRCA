@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.1.0",
+  "twin_id": "SYNTHETIC_TWIN_001",
+  "prediction_id": "pred_demo_001",
+  "snapshot_id": "snapshot_demo_001",
+  "state_version": 1,
+  "data_version": "synthetic-0.1.0",
+  "audit_id": "audit_demo_001",
+  "created_at": "2026-09-01T10:00:00Z",
+  "model_name": "constant-demo",
+  "model_version": "mock-0.1.0",
+  "is_mock": true,
+  "risk_probability": 0.31,
+  "horizon_months": 60,
+  "confidence": "not_assessed",
+  "ood_flag": null,
+  "shap_values": [],
+  "warnings": [
+    "Synthetic mock output; no trained model, calibration, SHAP, or clinical interpretation."
+  ]
+}

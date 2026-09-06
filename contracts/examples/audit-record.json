@@ -1,0 +1,16 @@
+{
+  "schema_version": "0.1.0",
+  "twin_id": "SYNTHETIC_TWIN_001",
+  "audit_id": "audit_demo_001",
+  "recorded_at": "2026-09-01T10:00:00Z",
+  "action": "PREDICTION_CREATED",
+  "actor": "demo-backend",
+  "event_ids": [
+    "evt_demo_001"
+  ],
+  "state_version": 1,
+  "snapshot_id": "snapshot_demo_001",
+  "prediction_id": "pred_demo_001",
+  "model_version": "mock-0.1.0",
+  "data_version": "synthetic-0.1.0"
+}

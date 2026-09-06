@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oncotwin:contracts:clinical-event:0.1.0",
+  "title": "ClinicalEvent",
+  "description": "Provisional reconstructed baseline; see contracts/README.md.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "twin_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_type": {
+      "enum": [
+        "PATHOLOGY_RESULT",
+        "DIAGNOSIS",
+        "BIOMARKER_RESULT",
+        "TREATMENT",
+        "FOLLOW_UP"
+      ]
+    },
+    "effective_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "received_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "quality_status": {
+      "enum": [
+        "valid",
+        "warning",
+        "invalid"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "source_system": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "source_system",
+        "source_record_id",
+        "data_version"
+      ],
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": [
+          "number",
+          "string",
+          "boolean",
+          "null"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "twin_id",
+    "event_id",
+    "event_type",
+    "effective_time",
+    "received_time",
+    "source",
+    "quality_status",
+    "provenance",
+    "payload"
+  ],
+  "additionalProperties": false
+}
