@@ -1,22 +1,24 @@
-# Foundation verification — 2026-09-06
+# Foundation verification — 2026-09-07
 
-Verified locally with Python 3.12.14, Node 24.11.0 and npm 11.6.1.
+Verified in the existing local working tree, including its uncommitted module work.
 
 | Check | Result |
 | --- | --- |
-| Five schemas and matching fixtures, including date-time formats | Passed |
-| Python tests: contracts, fixture lineage, API health, mock ML, Data validation | 19 passed |
-| Mock inference CLI and sample event validator CLI | Passed |
+| Five schemas and matching fixtures, including formats | All five passed |
+| Python suite: contracts, API, storage, models, mock ML and Data validation | 69 passed |
+| Frontend API client tests | 4 passed |
 | TypeScript check and Vite production build | Passed |
-| npm dependency audit after updating Vite to 7.3.6 | Zero reported vulnerabilities |
-| Docker Compose configuration using .env.example | Passed; Docker config access warnings |
 
-One upstream Starlette/AnyIO deprecation warning appeared in the test suite.
-The database was not started; no database integration is implemented. Browser
-interaction was not tested. The frontend was verified by type checking/build only.
-GitHub CI is supplied but has not run remotely. No Git repository, remote, commit,
-team branches or publication was created. No full end-to-end event pipeline is
-claimed. Contract adoption/reconciliation remains a team decision.
+One Starlette/AnyIO deprecation warning appeared. Database tests use SQLite;
+PostgreSQL service, migrations and concurrent writes were not verified against a
+live PostgreSQL instance. Browser interaction was not tested in this update.
+FHIR adapter, ETL and model training remain unimplemented. Predictions are constant
+mock outputs, not trained results.
 
-Dependencies were installed in the local .venv and frontend/node_modules, both
-ignored. frontend/package-lock.json records the resolved Node dependencies.
+The CI workflow now includes frontend tests as well as the build. Remote CI and
+publication were not run or verified. A Git foundation commit and origin already
+exist, but current uncommitted changes must be reviewed and published before other
+leads can receive them by cloning. No commit or push was made in this update.
+
+The existing AGENTS.md, ignore rules, seven base folders and module entry points
+were inspected. Contracts and fixtures were preserved without modification.

@@ -9,8 +9,8 @@ and [pending decisions](docs/contract-decisions.md) before freezing team interfa
 
 | Folder | Owner / purpose |
 | --- | --- |
-| frontend/ | Frontend Lead · React + TypeScript fixture viewer |
-| backend/ | Backend/Digital Twin Lead · FastAPI health starter |
+| frontend/ | Frontend Lead · React + TypeScript API dashboard |
+| backend/ | Backend/Digital Twin Lead · FastAPI events, state, snapshots and audits |
 | ml/ | AI/ML Lead · validated deterministic mock inference |
 | data/ | Data/FHIR Lead · event validator and adapter/ETL boundaries |
 | contracts/ | Shared schemas and linked synthetic examples |
@@ -28,6 +28,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe scripts/validate_contracts.py
 .\.venv\Scripts\python.exe -m pytest
 npm.cmd --prefix frontend ci
+npm.cmd --prefix frontend test
 npm.cmd --prefix frontend run build
 ```
 
@@ -47,8 +48,11 @@ Frontend (terminal 2):
 ```powershell
 npm.cmd --prefix frontend run dev
 ```
-Open the local URL printed by Vite. It reads shared JSON fixtures directly and does
-not yet call the API. No database or model download is required.
+Open http://127.0.0.1:5173. The dashboard calls the backend on port 8000.
+Create a synthetic twin, append an event, create a snapshot, then generate a mock
+prediction and inspect its audit. No database or model download is required.
+Default in-memory records disappear when the backend restarts. See module READMEs
+for API configuration and optional database persistence.
 
 ML and Data smoke checks:
 ```powershell
@@ -63,9 +67,9 @@ their [Frontend](docs/leads/frontend.md), [Backend](docs/leads/backend.md),
 [AI/ML](docs/leads/ml.md), or [Data/FHIR](docs/leads/data.md) instruction file.
 Start in separate clones and work only in the assigned module.
 
-The next milestone is one synthetic event passing through the complete system.
-Event replay, persistence, full API integration, FHIR conversion and trained ML
-remain lead tasks; they are not implemented by this foundation.
+Start with the [team handoff checklist](docs/team-handoff.md), which distinguishes
+the current implementation from each lead's next task. The synthetic API workflow
+is implemented; FHIR conversion, cohort ETL and trained ML remain unimplemented.
 See [architecture](docs/architecture.md) and [optional database setup](infra/README.md).
 
 See [verification results](docs/verification.md) for completed checks and limits.

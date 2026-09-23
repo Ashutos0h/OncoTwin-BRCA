@@ -5,11 +5,11 @@ docs/architecture.md. Own `frontend/`; coordinate changes elsewhere.
 
 ## First task
 
-Build the dashboard from contracts/examples with accessible loading, empty, error and missing-data states. Add risk trajectory only once historical predictions exist; label mock results clearly. Agree API consumption with Backend before wiring requests.
+The API dashboard already exists. Start by verifying create twin → append event → snapshot → mock prediction → audit in the browser. Add meaningful UI interaction coverage for this flow, failed requests, empty results and missing values; existing tests cover the API client only. Review keyboard access and preserve explicit mock labels. Coordinate any API changes with Backend.
 
 ## Acceptance
 
-Run `npm --prefix frontend run build` and `python scripts/validate_contracts.py` from root.
+Run `npm --prefix frontend test`, `npm --prefix frontend run build` and `python scripts/validate_contracts.py` from root.
 Deliver a focused PR with behavior, validation results and remaining limitations.
 Do not change shared fields to fit module code. Raise contract proposals explicitly.
 

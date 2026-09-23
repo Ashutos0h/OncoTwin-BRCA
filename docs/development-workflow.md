@@ -1,35 +1,37 @@
 # Team setup and workflow
 
-1. Project owner reviews docs/contract-decisions.md and adopts or reconciles the
-   provisional schemas before freezing integration interfaces.
-2. Follow README.md to run checks locally.
-3. Create a private GitHub repository and publish the reviewed base (commands below).
-4. Invite all four leads. Each clones separately and creates a feature branch.
-5. Give each lead their docs/leads/ file; start with the synthetic milestone.
-6. Open focused PRs, review contract impact and merge into main after checks pass.
+The local repository already has a foundation commit and an origin remote:
+`https://github.com/Ashutos0h/OncoTwin-BRCA`.
+Remote contents, access and publication status have not been verified here.
+Do not reinitialize Git or add another origin.
 
-Publishing is manual: no remote, commit or push was created by the scaffold.
-From root, after reviewing `git status`:
+1. Review docs/contract-decisions.md before freezing the provisional interfaces.
+2. Run README.md checks and review `git status --short` and `git diff`.
+3. Review untracked files too: the current frontend/backend work includes new files
+   that teammates will not receive until they are committed and pushed.
+4. Stage only reviewed source, tests, configuration examples and documentation.
+   Commit the reviewed baseline, then push the intended branch to the existing
+   origin. Do not include .env, datasets, credentials, databases or model binaries.
+5. Invite the four leads using the repository's access settings. Each uses an
+   independent clone and the relevant docs/leads/ instruction file.
 
-```powershell
-git init -b main
-git add .
-git commit -m "Initialize OncoTwin-BRCA shared foundation"
-git remote add origin YOUR_REPOSITORY_URL
-git push -u origin main
-```
-
-Each lead runs (replace placeholders):
+Each lead runs:
 
 ```powershell
-git clone YOUR_REPOSITORY_URL
+git clone https://github.com/Ashutos0h/OncoTwin-BRCA.git
 cd OncoTwin-BRCA
-git switch -c feature/YOUR_MODULE
+git switch -c codex/YOUR_MODULE
 ```
 
-Use frontend, backend, ml or data for YOUR_MODULE. Push with
-`git push -u origin feature/YOUR_MODULE` after the first module commit.
-Never commit .env, patient records, raw datasets, local databases or model binaries.
+Replace YOUR_MODULE with frontend, backend, ml or data. Follow README.md for
+installation, then copy the prompt from your lead file into your working session.
+After a module commit, push with `git push -u origin codex/YOUR_MODULE`.
+Open a focused pull request and merge after relevant checks and affected-lead review.
+Do not run separate branch checkouts in the same working folder.
 
-Before a PR: run contract validation, relevant pytest modules, and frontend build
-when frontend changes. Include what changed, checks and any unimplemented pieces.
+Before a PR, run contract validation and relevant Python tests; for frontend changes,
+run frontend tests and build. Shared schema changes need explicit agreement,
+versioning and migration decisions, fixtures and tests. Existing schemas remain the
+implementation authority while broader feature semantics are being reviewed.
+
+See team-handoff.md for current module status and the next deliverable per lead.

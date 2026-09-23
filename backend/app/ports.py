@@ -1,0 +1,53 @@
+"""Storage interfaces used by the API application."""
+
+from collections.abc import Sequence
+from typing import Protocol
+
+from backend.app.models import (
+    AuditRecord,
+    ClinicalEvent,
+    FeatureSnapshot,
+    Prediction,
+    TwinState,
+    TwinSummary,
+)
+
+
+class EventStore(Protocol):
+    def create_twin(self, twin_id: str) -> None: ...
+    def append(
+        self,
+        twin_id: str,
+        event: ClinicalEvent,
+        expected_state_version: int | None = None,
+    ) -> int: ...
+    def check_ready(self) -> None: ...
+    def list_twins(self, *, limit: int, offset: int) -> tuple[list[TwinSummary], int]: ...
+    def events_for(self, twin_id: str) -> tuple[ClinicalEvent, ...]: ...
+    def list_for(
+        self, twin_id: str, *, limit: int, offset: int
+    ) -> tuple[list[ClinicalEvent], int]: ...
+    def rebuild(self, twin_id: str) -> TwinState: ...
+
+
+class SnapshotStore(Protocol):
+    def create(self, state: TwinState) -> FeatureSnapshot: ...
+    def get(self, snapshot_id: str) -> FeatureSnapshot: ...
+    def event_ids_for(self, snapshot_id: str) -> tuple[str, ...]: ...
+    def list_for(
+        self, twin_id: str, *, limit: int, offset: int
+    ) -> tuple[list[FeatureSnapshot], int]: ...
+
+
+class PredictionAuditStore(Protocol):
+    def create(
+        self, snapshot: FeatureSnapshot, event_ids: Sequence[str]
+    ) -> tuple[Prediction, AuditRecord]: ...
+    def get_prediction(self, prediction_id: str) -> Prediction: ...
+    def get_audit(self, audit_id: str) -> AuditRecord: ...
+    def list_predictions(
+        self, twin_id: str, *, limit: int, offset: int
+    ) -> tuple[list[Prediction], int]: ...
+    def list_audits(
+        self, twin_id: str, *, limit: int, offset: int
+    ) -> tuple[list[AuditRecord], int]: ...

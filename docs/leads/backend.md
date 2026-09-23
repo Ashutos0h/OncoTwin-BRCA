@@ -5,7 +5,7 @@ docs/architecture.md. Own `backend/`; coordinate changes elsewhere.
 
 ## First task
 
-Implement models matching the five schemas and an in-memory immutable event store. Propose and document POST /api/v1/twins, POST /api/v1/twins/{id}/events and GET /api/v1/twins/{id}/state. Test duplicate IDs, out-of-order events, deterministic replay and lineage. Own persistence/migrations, audit creation and ML integration.
+Models, immutable event replay, snapshots, mock inference, linked audits and database repositories already exist. Read backend/README.md and the existing tests first. Add PostgreSQL integration coverage for migrations, persistence across restart and concurrent expected_state_version writes; current database tests use SQLite. Review replay and error policies with the other leads. Own persistence/migrations, audit creation and the ML adapter; preserve the current schema shapes.
 
 ## Acceptance
 
