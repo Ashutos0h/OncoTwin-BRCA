@@ -36,12 +36,26 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(0, 'Cannot reach the backend. Check that it is running on port 8000.');
   }
 
-  const body = await response.json().catch(() => null) as { detail?: unknown } | null;
   if (!response.ok) {
-    const detail = typeof body?.detail === 'string' ? body.detail : `Request failed with status ${response.status}.`;
+    const text = await response.text();
+    let body: any = null;
+    try { body = JSON.parse(text); } catch { /* ignore */ }
+
+    let detail = `Request failed with status ${response.status}.`;
+    if (body && typeof body === 'object' && 'detail' in body) {
+      if (typeof body.detail === 'string') {
+        detail = body.detail;
+      } else if (Array.isArray(body.detail)) {
+        detail = body.detail.map((err: any) => err.msg || JSON.stringify(err)).join(', ');
+      } else {
+        detail = JSON.stringify(body.detail);
+      }
+    } else if (text) {
+      detail = text;
+    }
     throw new ApiError(response.status, detail);
   }
-  return body as T;
+  return response.json() as Promise<T>;
 }
 
 const twinPath = (twinId: string) => `/twins/${encodeURIComponent(twinId)}`;

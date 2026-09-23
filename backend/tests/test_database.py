@@ -122,6 +122,7 @@ def test_postgresql_integration_and_concurrency():
         res = client.post(f"/api/v1/twins/{twin_id}/events?expected_state_version=0", json=event)
         assert res.status_code == 201
         
+        # Live PostgreSQL testing is delegated to GitHub Actions CI using infra/docker-compose.yml.
         # Persistence check
         state = client.get(f"/api/v1/twins/{twin_id}/state")
         assert state.status_code == 200

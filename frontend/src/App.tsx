@@ -131,7 +131,7 @@ function App() {
         twin_id: selectedTwin,
         event_id: eventId.trim(),
         event_type: eventType,
-        effective_time: new Date(effectiveTime).toISOString(),
+        effective_time: effectiveTime.includes('Z') ? effectiveTime : (effectiveTime.length === 16 ? effectiveTime + ':00Z' : effectiveTime + 'Z'),
         received_time: now,
         source: 'synthetic-dashboard',
         quality_status: qualityStatus,
@@ -298,10 +298,40 @@ function App() {
                 </section>
 
                 <section className="panel prediction-panel">
-                  <div className="panel-heading"><div><span className="kicker">Model output</span><h2>Latest prediction</h2></div>{latestPrediction?.is_mock && <span className="mock-badge">Mock</span>}</div>
+                  {/* Real Prediction output with SHAP values */}
+                  <div className="panel-heading">
+                    <div><span className="kicker">Model output</span><h2>Latest prediction</h2></div>
+                    {latestPrediction?.is_mock && <span className="mock-badge">Mock</span>}
+                  </div>
                   {!latestPrediction ? <p className="empty-copy">Create a snapshot and run mock inference to see a result.</p> : <>
-                    <div className="risk-row"><div className="risk-ring" style={{ '--risk': `${latestPrediction.risk_probability * 100}%` } as React.CSSProperties}><span>{Math.round(latestPrediction.risk_probability * 100)}<small>%</small></span></div><div><strong>{latestPrediction.horizon_months}-month demo risk</strong><p>Confidence: {readable(latestPrediction.confidence)}</p><p>Model: {latestPrediction.model_name} {latestPrediction.model_version}</p></div></div>
-                    {latestPrediction.warnings.map((warning) => <p className="model-warning" key={warning}>{warning}</p>)}
+                    <div className="risk-row">
+                      <div className="risk-ring" style={{ '--risk': `${latestPrediction.risk_probability * 100}%` } as React.CSSProperties}>
+                        <span>{Math.round(latestPrediction.risk_probability * 100)}<small>%</small></span>
+                      </div>
+                      <div>
+                        <strong>{latestPrediction.horizon_months}-month survival risk</strong>
+                        <p>Confidence: {readable(latestPrediction.confidence)}</p>
+                        <p>Model: {latestPrediction.model_name} {latestPrediction.model_version}</p>
+                      </div>
+                    </div>
+                    {latestPrediction.warnings?.map((warning) => <p className="model-warning" key={warning}>{warning}</p>)}
+                    
+                    {latestPrediction.shap_values && latestPrediction.shap_values.length > 0 && (
+                      <div className="shap-values">
+                        <h3>Feature Contributions (SHAP)</h3>
+                        <div className="shap-bars">
+                          {latestPrediction.shap_values.map((sv) => (
+                            <div key={sv.feature} className="shap-bar-row">
+                              <span className="shap-feature">{readable(sv.feature)}</span>
+                              <div className="shap-bar-container">
+                                <div className={`shap-bar ${sv.value > 0 ? 'positive' : 'negative'}`} style={{ width: `${Math.min(Math.abs(sv.value) * 100, 100)}%` }} />
+                              </div>
+                              <span className="shap-value">{sv.value > 0 ? '+' : ''}{sv.value.toFixed(3)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>}
                   {trajectory.length >= 2 && <div className="trajectory"><h3>Prediction history</h3><div className="bars" aria-label="Historical mock risk probabilities">{trajectory.map((item) => <div key={item.prediction_id}><span style={{ height: `${Math.max(item.risk_probability * 100, 4)}%` }} /><small>v{item.state_version}</small></div>)}</div></div>}
                 </section>

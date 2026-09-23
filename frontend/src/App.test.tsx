@@ -29,12 +29,12 @@ describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.health).mockResolvedValue(true);
-    vi.mocked(api.listTwins).mockResolvedValue({ items: [], total: 0 });
-    vi.mocked(api.listEvents).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(api.listTwins).mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    vi.mocked(api.listEvents).mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
     vi.mocked(api.getState).mockRejectedValue(new ApiError(409, 'Not found'));
-    vi.mocked(api.listSnapshots).mockResolvedValue({ items: [], total: 0 });
-    vi.mocked(api.listPredictions).mockResolvedValue({ items: [], total: 0 });
-    vi.mocked(api.listAudits).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(api.listSnapshots).mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    vi.mocked(api.listPredictions).mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    vi.mocked(api.listAudits).mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
   });
 
   it('handles connection state and basic interactions', async () => {
@@ -46,7 +46,7 @@ describe('App', () => {
     
     // Create twin
     vi.mocked(api.createTwin).mockResolvedValue({ twin_id: 'TWIN_123', status: 'created' });
-    vi.mocked(api.listTwins).mockResolvedValue({ items: [{ twin_id: 'TWIN_123', state_version: 0 }], total: 1 });
+    vi.mocked(api.listTwins).mockResolvedValue({ items: [{ twin_id: 'TWIN_123', state_version: 0 }], total: 1, limit: 10, offset: 0 });
 
     const input = screen.getByLabelText(/New synthetic twin ID/i);
     fireEvent.change(input, { target: { value: 'TWIN_123' } });

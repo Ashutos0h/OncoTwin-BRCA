@@ -45,8 +45,14 @@ def test_observation_to_event_invalid_code(valid_fhir_observation):
     with pytest.raises(ValueError, match="Unsupported observation code"):
         observation_to_event(valid_fhir_observation, "SYNTHETIC_TWIN_001")
 
-def test_observation_to_event_invalid_unit(valid_fhir_observation):
+def test_observation_to_event_cm_unit(valid_fhir_observation):
     valid_fhir_observation["valueQuantity"]["unit"] = "cm"
+    valid_fhir_observation["valueQuantity"]["value"] = 3.1
+    event = observation_to_event(valid_fhir_observation, "SYNTHETIC_TWIN_001")
+    assert event["payload"]["tumour_size_mm"] == 31.0
+
+def test_observation_to_event_invalid_unit(valid_fhir_observation):
+    valid_fhir_observation["valueQuantity"]["unit"] = "inch"
     with pytest.raises(ValueError, match="Unsupported unit"):
         observation_to_event(valid_fhir_observation, "SYNTHETIC_TWIN_001")
 
