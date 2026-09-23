@@ -44,7 +44,7 @@ def predict_demo(snapshot, *, prediction_id, audit_id, created_at):
         
         result['is_mock'] = False
         result['model_name'] = type(model).__name__
-        result['model_version'] = "0.2.0-trained"
+        result['model_version'] = getattr(model, '__version__', 'unknown')
         result['risk_probability'] = float(risk)
         
         # Simple OOD and Confidence heuristic
@@ -64,6 +64,7 @@ def predict_demo(snapshot, *, prediction_id, audit_id, created_at):
         result['warnings'] = warnings
         
         # SHAP values
+        result['shap_values'] = []
         if shap is not None:
             try:
                 if type(model).__name__ in ["Pipeline", "LogisticRegression"]:
@@ -76,16 +77,14 @@ def predict_demo(snapshot, *, prediction_id, audit_id, created_at):
                     explainer = shap.TreeExplainer(model)
                     s_vals = explainer.shap_values(x_input)
                     shap_vals = s_vals[1][0] if isinstance(s_vals, list) else s_vals[0]
+                
+                result['shap_values'] = [
+                    {"feature": "tumour_size_mm", "value": float(shap_vals[0])},
+                    {"feature": "grade", "value": float(shap_vals[1])},
+                    {"feature": "positive_nodes", "value": float(shap_vals[2])},
+                ]
             except Exception:
-                shap_vals = np.array([risk * 0.5, risk * 0.3, risk * 0.2])
-        else:
-            shap_vals = np.array([risk * 0.5, risk * 0.3, risk * 0.2])
-            
-        result['shap_values'] = [
-            {"feature": "tumour_size_mm", "value": float(shap_vals[0])},
-            {"feature": "grade", "value": float(shap_vals[1])},
-            {"feature": "positive_nodes", "value": float(shap_vals[2])},
-        ]
+                pass
     
     validate('prediction', result)
     return result

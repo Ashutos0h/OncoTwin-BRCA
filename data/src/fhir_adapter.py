@@ -25,25 +25,26 @@ def observation_to_event(observation: dict, twin_id: str) -> dict:
         value = vq.get("value")
         if unit == "cm" and value is not None:
             value = value * 10.0
-        elif unit != "mm":
+        elif unit != "mm" and value is not None:
             raise ValueError("Unsupported unit. Only 'mm' and 'cm' are supported for tumor size.")
-        if value is None or value < 0:
+        if value is not None and value < 0:
             raise ValueError("Impossible or missing value for tumor size")
         payload["tumour_size_mm"] = value
     elif "33732-9" in codes:
         # Histologic Grade
         vq = observation.get("valueQuantity", {})
         value = vq.get("value")
-        if value not in [1, 2, 3, 4]:
-            raise ValueError("Grade must be between 1 and 4")
-        payload["grade"] = int(value)
+        if value is not None and value not in [1, 2, 3, 4]:
+            payload["grade"] = None
+        else:
+            payload["grade"] = int(value) if value is not None else None
     elif "21893-3" in codes:
         # Positive Nodes
         vq = observation.get("valueQuantity", {})
         value = vq.get("value")
-        if value is None or value < 0:
+        if value is not None and value < 0:
             raise ValueError("Nodes cannot be negative")
-        payload["positive_nodes"] = int(value)
+        payload["positive_nodes"] = int(value) if value is not None else None
     else:
         raise ValueError("Unsupported observation code. Expected 21889-1, 33732-9, or 21893-3.")
 
