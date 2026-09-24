@@ -31,8 +31,23 @@ function App() {
   const [eventId, setEventId] = useState(nextEventId);
   const [eventType, setEventType] = useState<ClinicalEvent['event_type']>('PATHOLOGY_RESULT');
   const [effectiveTime, setEffectiveTime] = useState(localDateTime);
-  const [qualityStatus, setQualityStatus] = useState<ClinicalEvent['quality_status']>('warning');
-  const [payload, setPayload] = useState(JSON.stringify(exampleEvent.payload, null, 2));
+  const [qualityStatus, setQualityStatus] = useState<ClinicalEvent['quality_status']>('valid');
+  const [payload, setPayload] = useState(JSON.stringify({ tumour_size_mm: 20, grade: 2, positive_nodes: 0 }, null, 2));
+
+  // Auto-populate JSON payload templates based on the event type selected
+  const handleEventTypeChange = (type: ClinicalEvent['event_type']) => {
+    setEventType(type);
+    if (type === 'PATHOLOGY_RESULT') {
+      setPayload(JSON.stringify({ tumour_size_mm: 20, grade: 2, positive_nodes: 0 }, null, 2));
+    } else if (type === 'BIOMARKER_RESULT') {
+      setPayload(JSON.stringify({ er_status: 'positive', pr_status: 'positive', her2_status: 'negative' }, null, 2));
+    } else if (type === 'TREATMENT') {
+      setPayload(JSON.stringify({ treatment_type: 'surgery', intent: 'curative' }, null, 2));
+    } else {
+      setPayload(JSON.stringify({}, null, 2));
+    }
+  };
+
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -265,7 +280,7 @@ function App() {
                   <form onSubmit={appendEvent}>
                     <div className="form-grid">
                       <label>Event ID<input required value={eventId} onChange={(e) => setEventId(e.target.value)} /></label>
-                      <label>Event type<select value={eventType} onChange={(e) => setEventType(e.target.value as ClinicalEvent['event_type'])}>
+                      <label>Event type<select value={eventType} onChange={(e) => handleEventTypeChange(e.target.value as ClinicalEvent['event_type'])}>
                         {(['PATHOLOGY_RESULT', 'DIAGNOSIS', 'BIOMARKER_RESULT', 'TREATMENT', 'FOLLOW_UP'] as const).map((item) => <option key={item}>{item}</option>)}
                       </select></label>
                       <label>Effective time<input required type="datetime-local" value={effectiveTime} onChange={(e) => setEffectiveTime(e.target.value)} /></label>

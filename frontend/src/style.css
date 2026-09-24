@@ -1,4 +1,4 @@
-﻿:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #173c43; background: #f4f8f7; font-synthesis: none; line-height: 1.5; --ink: #173c43; --muted: #668086; --teal: #087f79; --teal-dark: #075d5a; --mint: #dcf3ed; --line: #d9e6e4; --panel: #fff; --warning: #a56712; --shadow: 0 14px 35px rgba(24,65,70,.07); }
+:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #173c43; background: #f4f8f7; font-synthesis: none; line-height: 1.5; --ink: #173c43; --muted: #668086; --teal: #087f79; --teal-dark: #075d5a; --mint: #dcf3ed; --line: #d9e6e4; --panel: #fff; --warning: #a56712; --shadow: 0 14px 35px rgba(24,65,70,.07); }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
@@ -122,14 +122,14 @@ textarea { resize: vertical; font-family: Consolas,monospace; font-size: .78rem;
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 /* SHAP Values */
-.shap-values { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
-.shap-values h3 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 1rem; }
+.shap-values { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.shap-values h3 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 1rem; }
 .shap-bar-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.875rem; }
-.shap-feature { width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); }
-.shap-bar-container { flex: 1; height: 8px; background: var(--bg-muted); border-radius: 4px; overflow: hidden; }
+.shap-feature { width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.shap-bar-container { flex: 1; height: 8px; background: #e3ecea; border-radius: 4px; overflow: hidden; }
 .shap-bar { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
-.shap-bar.positive { background: var(--error-color); }
-.shap-bar.negative { background: var(--accent-color); }
+.shap-bar.positive { background: #d54d4d; }
+.shap-bar.negative { background: var(--teal); }
 .shap-value { width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
 
 
