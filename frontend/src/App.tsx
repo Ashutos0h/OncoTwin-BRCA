@@ -7,7 +7,7 @@ type ConnectionState = 'checking' | 'online' | 'offline';
 
 const localDateTime = () => {
   const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000);
-  return now.toISOString().slice(0, 16);
+  return now.toISOString().slice(0, 19);
 };
 
 const nextEventId = () => `evt_${Date.now().toString(36)}`;
@@ -15,7 +15,7 @@ const readable = (value: string) => value.toLowerCase().replaceAll('_', ' ').rep
 const displayValue = (value: unknown) => value === null ? 'Missing' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
 const formatTime = (value: string) => new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
-  timeStyle: 'short',
+  timeStyle: 'medium',
 }).format(new Date(value));
 
 function App() {
@@ -284,7 +284,7 @@ function App() {
                       <label>Event type<select value={eventType} onChange={(e) => handleEventTypeChange(e.target.value as ClinicalEvent['event_type'])}>
                         {(['PATHOLOGY_RESULT', 'DIAGNOSIS', 'BIOMARKER_RESULT', 'TREATMENT', 'FOLLOW_UP'] as const).map((item) => <option key={item}>{item}</option>)}
                       </select></label>
-                      <label>Effective time<input required type="datetime-local" value={effectiveTime} onChange={(e) => setEffectiveTime(e.target.value)} /></label>
+                      <label>Effective time<input required type="datetime-local" step="1" value={effectiveTime} onChange={(e) => setEffectiveTime(e.target.value)} /></label>
                       <label>Quality<select value={qualityStatus} onChange={(e) => setQualityStatus(e.target.value as ClinicalEvent['quality_status'])}>
                         <option value="valid">Valid</option><option value="warning">Warning</option>
                       </select></label>
