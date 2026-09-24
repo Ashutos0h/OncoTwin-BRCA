@@ -159,6 +159,7 @@ function App() {
       };
       await api.appendEvent(selectedTwin, clinicalEvent, currentTwin?.state_version ?? 0);
       setEventId(nextEventId());
+      setEffectiveTime(localDateTime());
       await Promise.all([refreshTwins(selectedTwin), refreshDetails(selectedTwin)]);
       setNotice('Clinical event accepted and the twin state was rebuilt.');
     });
