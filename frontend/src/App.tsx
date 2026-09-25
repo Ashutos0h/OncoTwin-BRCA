@@ -146,7 +146,7 @@ function App() {
         twin_id: selectedTwin,
         event_id: eventId.trim(),
         event_type: eventType,
-        effective_time: effectiveTime.includes('Z') ? effectiveTime : (effectiveTime.length === 16 ? effectiveTime + ':00Z' : effectiveTime + 'Z'),
+        effective_time: effectiveTime.includes('Z') ? effectiveTime : new Date(effectiveTime).toISOString(),
         received_time: now,
         source: 'synthetic-dashboard',
         quality_status: qualityStatus,
