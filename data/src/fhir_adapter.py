@@ -31,7 +31,7 @@ def observation_to_event(observation: dict, twin_id: str) -> dict:
             elif unit != "mm":
                 raise ValueError("Unsupported unit. Only 'mm' and 'cm' are supported for tumor size.")
             if value < 0:
-                raise ValueError("Impossible negative value for tumor size")
+                raise ValueError("Impossible or missing value for tumor size")
             payload["tumour_size_mm"] = value
     elif "33732-9" in codes:
         # Histologic Grade

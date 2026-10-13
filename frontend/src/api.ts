@@ -74,7 +74,8 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ twin_id: twinId }),
   }),
-  listEvents: (twinId: string) => request<Page<ClinicalEvent>>(`${twinPath(twinId)}/events?limit=200`),
+  listEvents: (twinId: string, limit = 200, offset = 0) =>
+    request<Page<ClinicalEvent>>(`${twinPath(twinId)}/events?limit=${limit}&offset=${offset}`),
   appendEvent: (twinId: string, event: ClinicalEvent, expectedVersion: number) =>
     request<{ twin_id: string; event_id: string; status: 'accepted'; state_version: number }>(
       `${twinPath(twinId)}/events?expected_state_version=${expectedVersion}`,
