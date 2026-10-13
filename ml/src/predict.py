@@ -1,8 +1,15 @@
 import argparse
 import json
 from pathlib import Path
-import numpy as np
-import joblib
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
+    import joblib
+except ImportError:
+    joblib = None
 
 try:
     import shap
@@ -18,8 +25,11 @@ def predict_demo(snapshot, *, prediction_id, audit_id, created_at):
     
     # Try to load real model, fallback to mock if missing
     model = None
-    if MODEL_PATH.exists():
-        model = joblib.load(MODEL_PATH)
+    if joblib is not None and MODEL_PATH.exists():
+        try:
+            model = joblib.load(MODEL_PATH)
+        except Exception:
+            model = None
     
     features_dict = snapshot.get("features", {})
     # Default values if missing
@@ -30,15 +40,14 @@ def predict_demo(snapshot, *, prediction_id, audit_id, created_at):
     positive_nodes = features_dict.get("positive_nodes", 0)
     if positive_nodes is None: positive_nodes = 0
 
-    x_input = np.array([[tumour_size, grade, positive_nodes]])
-
     result = load_example('prediction')
     for key in ('twin_id', 'snapshot_id', 'state_version', 'data_version'):
         result[key] = snapshot[key]
     result.update(prediction_id=prediction_id, audit_id=audit_id, created_at=created_at)
 
-    if model is not None:
+    if model is not None and np is not None:
         try:
+            x_input = np.array([[tumour_size, grade, positive_nodes]])
             # Generate real prediction
             probs = model.predict_proba(x_input)[0]
             risk = probs[1]
