@@ -2,6 +2,7 @@ import type {
   AuditRecord,
   ClinicalEvent,
   FeatureSnapshot,
+  ModelInfo,
   Page,
   Prediction,
   TwinState,
@@ -90,5 +91,6 @@ export const api = {
     { method: 'POST' },
   ),
   listAudits: (twinId: string) => request<Page<AuditRecord>>(`${twinPath(twinId)}/audits?limit=200`),
+  getModelInfo: () => request<ModelInfo>('/model/info'),
 };
 

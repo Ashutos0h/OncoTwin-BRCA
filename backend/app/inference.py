@@ -3,7 +3,7 @@
 from typing import Any, Protocol
 
 from backend.app.models import FeatureSnapshot
-from ml.src.predict import predict_demo
+from ml.src.predict import predict_demo, predict_model
 
 
 class InferenceEngine(Protocol):
@@ -33,5 +33,31 @@ class MockInferenceEngine:
             prediction_id=prediction_id,
             audit_id=audit_id,
             created_at=created_at,
+            use_model=False,
         )
 
+
+class TrainedModelInferenceEngine:
+    """Adapter for the trained calibrated ML model."""
+
+    def predict(
+        self,
+        snapshot: FeatureSnapshot,
+        *,
+        prediction_id: str,
+        audit_id: str,
+        created_at: str,
+    ) -> dict[str, Any]:
+        return predict_model(
+            snapshot.model_dump(mode="json"),
+            prediction_id=prediction_id,
+            audit_id=audit_id,
+            created_at=created_at,
+        )
+
+
+def get_inference_engine(mode: str = "mock") -> InferenceEngine:
+    """Factory returning the configured InferenceEngine implementation."""
+    if mode.strip().lower() == "trained":
+        return TrainedModelInferenceEngine()
+    return MockInferenceEngine()

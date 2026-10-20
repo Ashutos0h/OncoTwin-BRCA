@@ -88,3 +88,13 @@ export interface Page<T> {
   offset: number;
 }
 
+export interface ModelInfo {
+  status: string;
+  inference_mode: 'mock' | 'trained' | string;
+  model_name: string;
+  model_version: string;
+  model_path?: string | null;
+  features_version?: string;
+}
+
+

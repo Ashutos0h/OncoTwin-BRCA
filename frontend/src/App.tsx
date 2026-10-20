@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, API_BASE_URL } from './api';
-import type { AuditRecord, ClinicalEvent, FeatureSnapshot, Prediction, TwinState, TwinSummary } from './types';
+import type { AuditRecord, ClinicalEvent, FeatureSnapshot, ModelInfo, Prediction, TwinState, TwinSummary } from './types';
 
 type ConnectionState = 'checking' | 'online' | 'offline';
 
@@ -26,6 +26,7 @@ const formatDateTime = (value: string) => {
 function App() {
   const [connection, setConnection] = useState<ConnectionState>('checking');
   const [storageReady, setStorageReady] = useState<boolean | null>(null);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [twins, setTwins] = useState<TwinSummary[]>([]);
   const [selectedTwin, setSelectedTwin] = useState('');
   const [state, setState] = useState<TwinState | null>(null);
@@ -61,11 +62,15 @@ function App() {
   const handleEventTypeChange = (type: ClinicalEvent['event_type']) => {
     setEventType(type);
     if (type === 'PATHOLOGY_RESULT') {
-      setPayload(JSON.stringify({ tumour_size_mm: 20, grade: 2, positive_nodes: 0 }, null, 2));
+      setPayload(JSON.stringify({ tumour_size_mm: 20, grade: 2, positive_nodes: 0, histological_type: 'ductal' }, null, 2));
     } else if (type === 'BIOMARKER_RESULT') {
-      setPayload(JSON.stringify({ er_status: 'positive', pr_status: 'positive', her2_status: 'negative' }, null, 2));
+      setPayload(JSON.stringify({ er_status: 'positive', pr_status: 'positive', her2_status: 'negative', ki67_percent: 15 }, null, 2));
+    } else if (type === 'DIAGNOSIS') {
+      setPayload(JSON.stringify({ morphology_code: '8500/3', stage: 'IIA', laterality: 'left' }, null, 2));
     } else if (type === 'TREATMENT') {
-      setPayload(JSON.stringify({ treatment_type: 'surgery', intent: 'curative' }, null, 2));
+      setPayload(JSON.stringify({ treatment_type: 'surgery', intent: 'curative', agent: 'lumpectomy' }, null, 2));
+    } else if (type === 'FOLLOW_UP') {
+      setPayload(JSON.stringify({ recurrence_status: false, vital_status: 'alive', follow_up_months: 12 }, null, 2));
     } else {
       setPayload(JSON.stringify({}, null, 2));
     }
@@ -134,6 +139,7 @@ function App() {
     setConnection(online ? 'online' : 'offline');
     if (!online) return;
     await checkStorage();
+    api.getModelInfo().then(setModelInfo).catch(() => setModelInfo(null));
     try {
       await refreshTwins();
     } catch (reason) {
@@ -242,11 +248,12 @@ function App() {
     const pred = await api.createPrediction(selectedTwin, latestSnapshot.snapshot_id);
     await refreshDetails(selectedTwin);
     setSelectedPredictionId(pred.prediction_id);
-    setNotice('Mock prediction and linked audit record created.');
+    setNotice(pred.is_mock ? 'Mock prediction and linked audit record created.' : 'Trained model prediction and linked audit record created.');
   });
 
   const handleRefresh = () => {
     void run('refresh', async () => {
+      api.getModelInfo().then(setModelInfo).catch(() => setModelInfo(null));
       await refreshTwins(selectedTwin);
       if (selectedTwin) await refreshDetails(selectedTwin);
       setNotice('Data refreshed.');
@@ -273,6 +280,12 @@ function App() {
           <span>OncoTwin <strong>BRCA</strong></span>
         </a>
         <div className="topbar-right">
+          {modelInfo && (
+            <div className={`model-badge ${modelInfo.inference_mode}`} title={`Model: ${modelInfo.model_name} (${modelInfo.model_version})\nMode: ${modelInfo.inference_mode}`}>
+              <span className="dot" aria-hidden="true" />
+              <span>{modelInfo.inference_mode === 'trained' ? 'Trained Model' : 'Mock Inference'}</span>
+            </div>
+          )}
           <button
             className="refresh-button"
             onClick={handleRefresh}
@@ -410,8 +423,8 @@ function App() {
                   <div className="workflow-step"><span>1</span><div><strong>Current state</strong><small>{state ? `Ready at version ${state.state_version}` : 'Add an accepted event'}</small></div><b className={state ? 'done' : ''}>{state ? '✓' : '○'}</b></div>
                   <div className="workflow-step"><span>2</span><div><strong>Feature snapshot</strong><small>{latestSnapshot ? latestSnapshot.snapshot_id : 'Capture immutable model inputs'}</small></div><b className={latestSnapshot ? 'done' : ''}>{latestSnapshot ? '✓' : '○'}</b></div>
                   <button className="secondary-button" onClick={createSnapshot} disabled={!state || busy === 'snapshot'}>{busy === 'snapshot' ? 'Creating…' : 'Create feature snapshot'}</button>
-                  <div className="workflow-step"><span>3</span><div><strong>Mock prediction</strong><small>{selectedPrediction ? selectedPrediction.model_version : 'Run the connected mock adapter'}</small></div><b className={selectedPrediction ? 'done' : ''}>{selectedPrediction ? '✓' : '○'}</b></div>
-                  <button className="primary-button" onClick={createPrediction} disabled={!latestSnapshot || busy === 'prediction'}>{busy === 'prediction' ? 'Generating…' : 'Generate mock prediction'}</button>
+                  <div className="workflow-step"><span>3</span><div><strong>{modelInfo?.inference_mode === 'trained' ? 'Model prediction' : 'Mock prediction'}</strong><small>{selectedPrediction ? selectedPrediction.model_version : (modelInfo?.inference_mode === 'trained' ? 'Run connected trained model' : 'Run the connected mock adapter')}</small></div><b className={selectedPrediction ? 'done' : ''}>{selectedPrediction ? '✓' : '○'}</b></div>
+                  <button className="primary-button" onClick={createPrediction} disabled={!latestSnapshot || busy === 'prediction'}>{busy === 'prediction' ? 'Generating…' : (modelInfo?.inference_mode === 'trained' ? 'Generate model prediction' : 'Generate mock prediction')}</button>
                 </section>
 
                 {/* ── Current twin state ── */}
@@ -429,25 +442,41 @@ function App() {
                 <section className="panel prediction-panel">
                   <div className="panel-heading">
                     <div><span className="kicker">Model output</span><h2>Prediction detail</h2></div>
-                    {selectedPrediction?.is_mock && <span className="mock-badge">Mock</span>}
+                    {selectedPrediction && (
+                      selectedPrediction.is_mock ? (
+                        <span className="mock-badge">Mock</span>
+                      ) : (
+                        <span className="trained-badge">Trained Model</span>
+                      )
+                    )}
                   </div>
-                  {!selectedPrediction ? <p className="empty-copy">Create a snapshot and run mock inference to see a result.</p> : <>
+                  {!selectedPrediction ? <p className="empty-copy">Create a snapshot and run inference to see a result.</p> : <>
                     <div className="risk-row">
                       <div
                         className="risk-ring"
                         style={{ '--risk': `${selectedPrediction.risk_probability * 100}%` } as React.CSSProperties}
-                        aria-label={`${Math.round(selectedPrediction.risk_probability * 100)}% mock risk at ${selectedPrediction.horizon_months} months`}
+                        aria-label={`${Math.round(selectedPrediction.risk_probability * 100)}% ${selectedPrediction.is_mock ? 'mock ' : ''}risk at ${selectedPrediction.horizon_months} months`}
                         role="img"
                       >
                         <span>{Math.round(selectedPrediction.risk_probability * 100)}<small>%</small></span>
                       </div>
                       <div>
                         <strong>{selectedPrediction.horizon_months}-month survival risk</strong>
-                        <p>Confidence: {readable(selectedPrediction.confidence)}</p>
+                        <p>Confidence: {readable(selectedPrediction.confidence)}
+                          <span className={`confidence-pill ${selectedPrediction.confidence}`}>
+                            {selectedPrediction.confidence.replace('_', ' ')}
+                          </span>
+                        </p>
                         <p>Model: {selectedPrediction.model_name} {selectedPrediction.model_version}</p>
                         <p className="prediction-id-label">ID: <code>{selectedPrediction.prediction_id}</code></p>
                       </div>
                     </div>
+                    {selectedPrediction.ood_flag === true && (
+                      <div className="ood-alert" role="alert">
+                        <strong>⚠ Out-of-Distribution Input Detected:</strong>
+                        <span>The input features fall outside the model training distribution. Epistemic uncertainty may be elevated.</span>
+                      </div>
+                    )}
                     {selectedPrediction.warnings?.map((warning) => <p className="model-warning" key={warning}>{warning}</p>)}
 
                     {selectedPrediction.shap_values && selectedPrediction.shap_values.length > 0 && (

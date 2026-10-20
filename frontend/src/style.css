@@ -57,8 +57,9 @@ textarea { resize: vertical; font-family: Consolas,monospace; font-size: .78rem;
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
 .page-heading h1, .welcome-card h1 { font: 800 clamp(1.65rem,4vw,2.35rem)/1.15 'Segoe UI',sans-serif; letter-spacing: -.035em; margin: 6px 0 7px; color: #143c42; overflow-wrap: anywhere; }
 .page-heading p { margin: 0; color: var(--muted); font-size: .91rem; }
-.version-badge, .mock-badge { white-space: nowrap; padding: 6px 10px; border-radius: 999px; background: var(--mint); color: var(--teal-dark); font-size: .73rem; font-weight: 700; }
+.version-badge, .mock-badge, .trained-badge { white-space: nowrap; padding: 6px 10px; border-radius: 999px; background: var(--mint); color: var(--teal-dark); font-size: .73rem; font-weight: 700; }
 .mock-badge { background: #fff0cb; color: #855f13; text-transform: uppercase; letter-spacing: .07em; }
+.trained-badge { background: #e1f4eb; color: #15835c; text-transform: uppercase; letter-spacing: .07em; }
 .welcome-card { min-height: 420px; display: grid; place-content: center; text-align: center; justify-items: center; background: #fff; border: 1px dashed #b9cfcc; border-radius: 18px; padding: 40px; }
 .welcome-card p { max-width: 470px; color: var(--muted); }
 .welcome-icon { width: 62px; height: 62px; display: grid; place-items: center; color: var(--teal); background: var(--mint); border-radius: 20px; font-size: 2rem; }
@@ -170,3 +171,14 @@ textarea { resize: vertical; font-family: Consolas,monospace; font-size: .78rem;
 @media (max-width: 760px) { .topbar { height: 62px; padding: 0 17px; } .topbar-right { gap: 8px; } .research-banner { padding: 8px 16px; text-align: left; } .layout { display: block; } .sidebar { border-right: 0; border-bottom: 1px solid var(--line); padding: 18px; } .twin-list { display: flex; overflow-x: auto; padding-bottom: 4px; } .twin-item { min-width: 190px; } .create-twin { margin-top: 6px; } .api-location { display: none; } .content { padding: 26px 16px 45px; } .page-heading { display: block; } .version-badge { display: inline-block; margin-top: 14px; } }
 @media (max-width: 520px) { .connection { font-size: 0; } .connection span { display: block; } .research-banner strong { display: block; margin-bottom: 2px; } .metric-grid, .form-grid, .value-list { grid-template-columns: 1fr; } .metric-card { min-height: 112px; } .risk-row { align-items: flex-start; } .risk-ring { width: 94px; height: 94px; } .refresh-button span { display: none; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .loading-bar span { animation: none; width: 100%; } .shap-bar { transition: none; } }
+
+/* Model Badge, Confidence Pills & OOD Alert */
+.model-badge { display: flex; align-items: center; gap: 7px; background: #eaf5f3; border: 1px solid #c2e4dc; border-radius: 999px; padding: 4px 11px; font-size: .75rem; font-weight: 700; color: var(--teal-dark); }
+.model-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+.confidence-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .68rem; font-weight: 700; text-transform: uppercase; margin-left: 6px; }
+.confidence-pill.high { background: #e1f4eb; color: #15835c; }
+.confidence-pill.moderate { background: #e6f0fa; color: #1e62ad; }
+.confidence-pill.low { background: #fdf0db; color: #ab6a15; }
+.confidence-pill.not_assessed { background: #eee; color: #777; }
+.ood-alert { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; border-radius: 9px; padding: 9px 12px; font-size: .75rem; margin-top: 12px; display: grid; gap: 3px; }
+

@@ -338,3 +338,31 @@ def test_frontend_origin_is_allowed_by_cors(client: TestClient):
     )
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+
+
+def test_model_info_endpoint(client: TestClient):
+    response = client.get("/api/v1/model/info")
+    assert response.status_code == 200
+    data = response.json()
+    assert "model_name" in data
+    assert "model_version" in data
+
+
+def test_trained_inference_mode_toggle(event: dict):
+    from backend.app.main import create_app
+    app = create_app(ml_inference_mode="trained")
+    with TestClient(app) as client:
+        twin_id = event["twin_id"]
+        create_twin(client, twin_id)
+        client.post(f"/api/v1/twins/{twin_id}/events", json=event)
+        snapshot = client.post(f"/api/v1/twins/{twin_id}/snapshots").json()
+        pred_res = client.post(
+            f"/api/v1/twins/{twin_id}/snapshots/{snapshot['snapshot_id']}/predictions"
+        )
+        assert pred_res.status_code == 201
+        prediction = pred_res.json()
+        validate("prediction", prediction)
+        assert prediction["is_mock"] is False
+        assert 0.0 <= prediction["risk_probability"] <= 1.0
+        assert prediction["model_name"] in {"LogisticRegression", "XGBClassifier"}
+

@@ -31,6 +31,7 @@ class Settings:
     reader_api_key: str | None = None
     writer_api_key: str | None = None
     log_level: str = "INFO"
+    ml_inference_mode: str = "mock"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -48,6 +49,7 @@ class Settings:
             reader_api_key=os.getenv("READER_API_KEY") or None,
             writer_api_key=os.getenv("WRITER_API_KEY") or None,
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
+            ml_inference_mode=os.getenv("ML_INFERENCE_MODE", "mock").strip().lower(),
         )
         settings.validate()
         return settings
@@ -55,6 +57,8 @@ class Settings:
     def validate(self) -> None:
         if self.app_env not in {"development", "test", "production"}:
             raise ValueError("APP_ENV must be development, test, or production.")
+        if self.ml_inference_mode not in {"mock", "trained"}:
+            raise ValueError("ML_INFERENCE_MODE must be 'mock' or 'trained'.")
         if not self.cors_origins:
             raise ValueError("CORS_ORIGINS must contain at least one origin.")
         if self.auth_enabled and (not self.reader_api_key or not self.writer_api_key):

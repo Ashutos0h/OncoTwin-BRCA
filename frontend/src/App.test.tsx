@@ -24,6 +24,7 @@ vi.mock('./api', () => ({
   },
   api: {
     health: vi.fn(),
+    getModelInfo: vi.fn(),
     listTwins: vi.fn(),
     createTwin: vi.fn(),
     listEvents: vi.fn(),
@@ -104,6 +105,13 @@ const mockAudit = {
   data_version: 'synthetic-0.1.0',
 };
 
+const mockModelInfo = {
+  status: 'ok',
+  inference_mode: 'mock',
+  model_name: 'MockBRCAModel',
+  model_version: '0.0.1-mock',
+};
+
 // ── Setup helpers ───────────────────────────────────────────────────────────
 // /ready is fetched directly (not through the api mock), so stub fetch here
 function stubReady(ok = true) {
@@ -113,6 +121,7 @@ function stubReady(ok = true) {
 function setupEmptyOnline() {
   stubReady();
   vi.mocked(api.health).mockResolvedValue(true);
+  vi.mocked(api.getModelInfo).mockResolvedValue(mockModelInfo);
   vi.mocked(api.listTwins).mockResolvedValue(emptyPage);
   vi.mocked(api.listEvents).mockResolvedValue(emptyPage);
   vi.mocked(api.getState).mockRejectedValue(new ApiError(409, 'Twin has no accepted events.'));
@@ -124,6 +133,7 @@ function setupEmptyOnline() {
 function setupWithTwin() {
   stubReady();
   vi.mocked(api.health).mockResolvedValue(true);
+  vi.mocked(api.getModelInfo).mockResolvedValue(mockModelInfo);
   vi.mocked(api.listTwins).mockResolvedValue({ items: [mockTwin], total: 1, limit: 50, offset: 0 });
   vi.mocked(api.listEvents).mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 });
   vi.mocked(api.getState).mockResolvedValue(mockState);
@@ -351,6 +361,50 @@ describe('App — prediction & SHAP', () => {
 
     fireEvent.click(screen.getByText(/Generate mock prediction/i));
     await waitFor(() => expect(screen.getByText(/Mock prediction and linked audit record created/i)).toBeDefined());
+  });
+
+  it('displays confidence pill for model prediction', async () => {
+    render(<App />);
+    await waitFor(() => fireEvent.click(screen.getAllByText('TWIN_001')[0]));
+    await waitFor(() => expect(screen.getByText('not assessed')).toBeDefined());
+  });
+
+  it('displays out-of-distribution warning when ood_flag is true', async () => {
+    vi.mocked(api.listPredictions).mockResolvedValue({
+      items: [{ ...mockPrediction, ood_flag: true }],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+    render(<App />);
+    await waitFor(() => fireEvent.click(screen.getAllByText('TWIN_001')[0]));
+    await waitFor(() => expect(screen.getByText(/Out-of-Distribution Input Detected/i)).toBeDefined());
+  });
+
+  it('displays trained model badge when prediction is not mock', async () => {
+    vi.mocked(api.getModelInfo).mockResolvedValue({
+      status: 'ok',
+      inference_mode: 'trained',
+      model_name: 'BRCA-Survival-LightGBM',
+      model_version: '1.0.0',
+    });
+    vi.mocked(api.listPredictions).mockResolvedValue({
+      items: [{
+        ...mockPrediction,
+        is_mock: false,
+        model_name: 'BRCA-Survival-LightGBM',
+        model_version: '1.0.0',
+        confidence: 'high' as const,
+        ood_flag: false,
+      }],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+    render(<App />);
+    await waitFor(() => fireEvent.click(screen.getAllByText('TWIN_001')[0]));
+    await waitFor(() => expect(screen.getAllByText('Trained Model').length).toBeGreaterThan(0));
+    expect(screen.getByText('high')).toBeDefined();
   });
 });
 

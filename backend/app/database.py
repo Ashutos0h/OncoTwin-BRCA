@@ -422,11 +422,11 @@ class DatabasePredictionAuditStore:
             return [AuditRecord.model_validate(row.document) for row in rows], total
 
 
-def create_database_stores(database_url: str):
+def create_database_stores(database_url: str, *, inference: InferenceEngine | None = None):
     engine = build_engine(database_url)
     sessions = build_session_factory(engine)
     return (
         DatabaseEventStore(sessions),
         DatabaseSnapshotStore(sessions),
-        DatabasePredictionAuditStore(sessions),
+        DatabasePredictionAuditStore(sessions, inference=inference),
     )

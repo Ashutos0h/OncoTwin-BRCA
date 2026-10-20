@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.auth import Authorizer
 from backend.app.config import Settings
+from backend.app.inference import InferenceEngine, get_inference_engine
 from backend.app.models import (
     AuditRecord,
     ClinicalEvent,
@@ -49,6 +50,8 @@ def create_app(
     reader_api_key: str | None = None,
     writer_api_key: str | None = None,
     log_level: str = "INFO",
+    ml_inference_mode: str = "mock",
+    inference: InferenceEngine | None = None,
 ) -> FastAPI:
     configure_logging(log_level)
     application = FastAPI(
@@ -64,9 +67,10 @@ def create_app(
             {"name": "audits", "description": "Prediction lineage and audit retrieval."},
         ],
     )
+    engine = inference or get_inference_engine(ml_inference_mode)
     event_store = store or InMemoryEventStore()
     feature_snapshots = snapshot_store or InMemorySnapshotStore()
-    prediction_results = result_store or InMemoryPredictionAuditStore()
+    prediction_results = result_store or InMemoryPredictionAuditStore(inference=engine)
     authorizer = Authorizer(
         enabled=auth_enabled,
         reader_key=reader_api_key,
@@ -92,6 +96,23 @@ def create_app(
     @application.get("/health", tags=["system"])
     def health():
         return {"status": "ok", "service": "oncotwin-backend", "mode": storage_mode}
+
+    @application.get("/api/v1/model/info", tags=["predictions"], dependencies=reader_access)
+    def model_info():
+        from pathlib import Path
+        import json as _json
+        meta_file = Path(__file__).resolve().parents[2] / "ml" / "models" / "model_metadata.json"
+        if meta_file.exists():
+            try:
+                return _json.loads(meta_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        return {
+            "model_name": "constant-demo",
+            "model_version": "mock-0.1.0",
+            "is_mock": True,
+            "status": "mock_fallback",
+        }
 
     @application.get(
         "/ready",
@@ -344,12 +365,15 @@ def create_app(
 
 def create_configured_app() -> FastAPI:
     settings = Settings.from_env()
+    inference = get_inference_engine(settings.ml_inference_mode)
     common = {
         "cors_origins": settings.cors_origins,
         "auth_enabled": settings.auth_enabled,
         "reader_api_key": settings.reader_api_key,
         "writer_api_key": settings.writer_api_key,
         "log_level": settings.log_level,
+        "ml_inference_mode": settings.ml_inference_mode,
+        "inference": inference,
     }
     if not settings.database_url:
         return create_app(**common)
@@ -357,7 +381,8 @@ def create_configured_app() -> FastAPI:
     from backend.app.database import create_database_stores
 
     event_store, snapshot_store, result_store = create_database_stores(
-        settings.database_url
+        settings.database_url,
+        inference=inference,
     )
     return create_app(
         event_store,
