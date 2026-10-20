@@ -1,0 +1,47 @@
+{
+  "model_name": "LogisticRegression",
+  "model_version": "synthetic-0.2.0-42",
+  "feature_set_version": "0.2.0",
+  "feature_names": [
+    "tumour_size_mm",
+    "grade",
+    "positive_nodes",
+    "ki67_percent",
+    "her2_status",
+    "er_status",
+    "pr_status"
+  ],
+  "outcome_label": "recurrence_5yr",
+  "horizon_months": 60,
+  "is_synthetic": true,
+  "clinical_use": "PROHIBITED \u2014 synthetic research prototype only",
+  "n_train": 420,
+  "n_val": 90,
+  "n_test": 90,
+  "candidates": {
+    "LogisticRegression": {
+      "val_roc_auc": 0.6964
+    },
+    "XGBClassifier": {
+      "val_roc_auc": 0.6213
+    }
+  },
+  "selected": "LogisticRegression",
+  "calibration": "Platt (sigmoid), fitted on val set",
+  "test_roc_auc": 0.686,
+  "test_brier_score": 0.2374,
+  "ood_rules": {
+    "tumour_size_mm_max": 100.0,
+    "positive_nodes_max": 30,
+    "ki67_percent_range": [
+      0.0,
+      100.0
+    ],
+    "grade_range": [
+      1,
+      4
+    ]
+  },
+  "trained_at": "2026-10-20T17:57:13.125881+00:00",
+  "shap_note": "SHAP explains model behaviour only \u2014 not clinical causality. No diagnosis or treatment recommendations should be derived."
+}
