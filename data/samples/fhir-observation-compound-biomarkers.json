@@ -1,0 +1,48 @@
+{
+  "resourceType": "Observation",
+  "id": "obs-compound-biomarkers-001",
+  "status": "final",
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "85319-2",
+        "display": "Breast cancer biomarker panel"
+      }
+    ]
+  },
+  "subject": {
+    "reference": "Patient/SYNTHETIC_TWIN_001"
+  },
+  "effectiveDateTime": "2026-09-01T10:00:00Z",
+  "component": [
+    {
+      "code": {
+        "coding": [{"system": "http://loinc.org", "code": "85319-2", "display": "HER2 IHC"}]
+      },
+      "valueString": "3+"
+    },
+    {
+      "code": {
+        "coding": [{"system": "http://loinc.org", "code": "85337-4", "display": "ER IHC"}]
+      },
+      "valueQuantity": {"value": 85.0, "unit": "%"}
+    },
+    {
+      "code": {
+        "coding": [{"system": "http://loinc.org", "code": "85347-3", "display": "PR IHC"}]
+      },
+      "valueQuantity": {"value": 0.0, "unit": "%"}
+    },
+    {
+      "code": {
+        "coding": [{"system": "http://loinc.org", "code": "59847-4", "display": "Ki-67"}]
+      },
+      "valueQuantity": {"value": 28.0, "unit": "%"}
+    }
+  ],
+  "meta": {
+    "versionId": "1",
+    "lastUpdated": "2026-09-01T10:00:00Z"
+  }
+}

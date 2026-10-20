@@ -1,0 +1,128 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-size-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "21889-1", "display": "Size Tumor"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueQuantity": {"value": 31.0, "unit": "mm"},
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-grade-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "33732-9", "display": "Histologic Grade"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueQuantity": {"value": 2},
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-nodes-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "21893-3", "display": "Lymph Nodes Positive"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueQuantity": {"value": 3},
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-her2-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "85319-2", "display": "HER2 IHC"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueCodeableConcept": {"text": "positive"},
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-er-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "85337-4", "display": "ER IHC"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueCodeableConcept": {"text": "positive"},
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-pr-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "85347-3", "display": "PR IHC"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueCodeableConcept": {"text": "negative"},
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-ki67-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "59847-4", "display": "Ki-67"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueQuantity": {"value": 25.0, "unit": "%"},
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bundle-dx-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "29308-4", "display": "Diagnosis"}]
+        },
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"},
+        "effectiveDateTime": "2026-09-01T10:00:00Z",
+        "valueCodeableConcept": {
+          "coding": [{"system": "http://snomed.info/sct", "code": "8500/3"}],
+          "text": "Infiltrating duct carcinoma"
+        },
+        "meta": {"versionId": "1", "lastUpdated": "2026-09-01T10:00:00Z"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-001",
+        "subject": {"reference": "Patient/SYNTHETIC_TWIN_001"}
+      }
+    }
+  ]
+}

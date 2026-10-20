@@ -1,0 +1,25 @@
+{
+  "resourceType": "Observation",
+  "id": "obs-er-001",
+  "status": "final",
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "85337-4",
+        "display": "Estrogen receptor [Presence] in Breast cancer.IHC"
+      }
+    ]
+  },
+  "subject": {
+    "reference": "Patient/SYNTHETIC_TWIN_001"
+  },
+  "effectiveDateTime": "2026-09-01T10:00:00Z",
+  "valueCodeableConcept": {
+    "text": "positive"
+  },
+  "meta": {
+    "versionId": "1",
+    "lastUpdated": "2026-09-01T10:00:00Z"
+  }
+}

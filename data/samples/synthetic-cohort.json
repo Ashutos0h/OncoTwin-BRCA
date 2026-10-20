@@ -1,0 +1,38 @@
+[
+  {
+    "twin_id": "SYNTHETIC_TWIN_001",
+    "record_id": "cohort_001",
+    "tumour_size_mm": 31.0,
+    "grade": 2,
+    "positive_nodes": 3,
+    "her2_status": "positive",
+    "er_status": "positive",
+    "pr_status": "negative",
+    "ki67_percent": 25.0,
+    "morphology_code": "8500/3"
+  },
+  {
+    "twin_id": "SYNTHETIC_TWIN_002",
+    "record_id": "cohort_002",
+    "tumour_size_mm": 18.5,
+    "grade": 1,
+    "positive_nodes": 0,
+    "her2_status": "negative",
+    "er_status": "positive",
+    "pr_status": "positive",
+    "ki67_percent": 8.0,
+    "morphology_code": "8500/3"
+  },
+  {
+    "twin_id": "SYNTHETIC_TWIN_003",
+    "record_id": "cohort_003",
+    "tumour_size_mm": 45.0,
+    "grade": 3,
+    "positive_nodes": 7,
+    "her2_status": null,
+    "er_status": "negative",
+    "pr_status": "negative",
+    "ki67_percent": null,
+    "morphology_code": null
+  }
+]

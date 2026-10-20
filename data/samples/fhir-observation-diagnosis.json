@@ -1,0 +1,32 @@
+{
+  "resourceType": "Observation",
+  "id": "obs-diagnosis-001",
+  "status": "final",
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "29308-4",
+        "display": "Diagnosis"
+      }
+    ]
+  },
+  "subject": {
+    "reference": "Patient/SYNTHETIC_TWIN_001"
+  },
+  "effectiveDateTime": "2026-09-01T10:00:00Z",
+  "valueCodeableConcept": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "8500/3",
+        "display": "Infiltrating duct carcinoma, NOS"
+      }
+    ],
+    "text": "Infiltrating duct carcinoma, NOS"
+  },
+  "meta": {
+    "versionId": "1",
+    "lastUpdated": "2026-09-01T10:00:00Z"
+  }
+}

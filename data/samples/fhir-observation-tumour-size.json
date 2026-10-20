@@ -1,0 +1,28 @@
+{
+  "resourceType": "Observation",
+  "id": "obs-tumour-size-001",
+  "status": "final",
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "21889-1",
+        "display": "Size Tumor"
+      }
+    ]
+  },
+  "subject": {
+    "reference": "Patient/SYNTHETIC_TWIN_001"
+  },
+  "effectiveDateTime": "2026-09-01T10:00:00Z",
+  "valueQuantity": {
+    "value": 31.0,
+    "unit": "mm",
+    "system": "http://unitsofmeasure.org",
+    "code": "mm"
+  },
+  "meta": {
+    "versionId": "1",
+    "lastUpdated": "2026-09-01T10:00:00Z"
+  }
+}
