@@ -23,5 +23,6 @@ Thumbs.db
 *.joblib
 data/raw/
 data/processed/
+data/exports/
 ml/artifacts/*
 !ml/artifacts/.gitkeep
