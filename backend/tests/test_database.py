@@ -34,8 +34,13 @@ def test_initial_migration_creates_all_tables(tmp_path, monkeypatch):
         "alembic_version",
         "audit_records",
         "clinical_events",
+        "data_versions",
         "feature_snapshots",
+        "model_versions",
+        "observations",
+        "patient_profiles",
         "predictions",
+        "tumour_profiles",
         "twins",
     }
 
@@ -146,3 +151,116 @@ def test_postgresql_integration_and_concurrency():
         
         assert 201 in results
         assert (412 in results) or (409 in results)
+
+
+def test_database_data_foundation_canonical_entities(tmp_path):
+    from backend.app.database import create_data_foundation
+    database_url = sqlite_url(tmp_path / "foundation.db")
+    engine = build_engine(database_url)
+    Base.metadata.create_all(engine)
+
+    # Need twin row first due to foreign keys
+    stores = create_database_stores(database_url)
+    twin_id = "TWIN_DATA_001"
+    stores[0].create_twin(twin_id)
+
+    foundation = create_data_foundation(database_url)
+
+    # 1. Patient Profile
+    profile = {
+        "patient_id": "PAT_001",
+        "twin_id": twin_id,
+        "gender": "female",
+        "birth_date": "1970-05-12",
+        "mrn": "MRN-998877",
+    }
+    saved_prof = foundation.save_patient_profile(profile)
+    assert saved_prof["patient_id"] == "PAT_001"
+    retrieved_prof = foundation.get_patient_profile(twin_id)
+    assert retrieved_prof["mrn"] == "MRN-998877"
+
+    # 2. Tumour Profile
+    tumour = {
+        "profile_id": "TUM_001",
+        "twin_id": twin_id,
+        "tumour_size_mm": 22.5,
+        "grade": 2,
+        "positive_nodes": 1,
+        "her2_status": "negative",
+        "er_status": "positive",
+        "pr_status": "positive",
+    }
+    foundation.save_tumour_profile(tumour)
+    retrieved_tum = foundation.get_tumour_profile(twin_id)
+    assert retrieved_tum["tumour_size_mm"] == 22.5
+    assert retrieved_tum["grade"] == 2
+
+    # 3. Observation
+    obs = {
+        "observation_id": "OBS_001",
+        "twin_id": twin_id,
+        "code": "21889-1",
+        "category": "pathology",
+        "effective_time": "2026-04-01T10:00:00Z",
+        "status": "final",
+        "value_numeric": 22.5,
+        "unit": "mm",
+    }
+    foundation.save_observation(obs)
+    obs_list = foundation.list_observations(twin_id)
+    assert len(obs_list) == 1
+    assert obs_list[0]["code"] == "21889-1"
+
+    # 4. Model Version
+    model_meta = {
+        "model_id": "MOD_001",
+        "name": "XGBoost_5yr_Recurrence",
+        "version": "1.0.0",
+        "algorithm": "XGBClassifier",
+        "data_version": "metabric-v1.0.0",
+    }
+    foundation.register_model_version(model_meta)
+    retrieved_mod = foundation.get_model_version("XGBoost_5yr_Recurrence", "1.0.0")
+    assert retrieved_mod["algorithm"] == "XGBClassifier"
+
+    # 5. Data Version
+    data_meta = {
+        "data_version_id": "DV_001",
+        "name": "metabric-v1.0.0",
+        "dataset_name": "METABRIC",
+        "record_count": 1944,
+        "content_sha256": "abc123def4567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    }
+    foundation.register_data_version(data_meta)
+    retrieved_dv = foundation.get_data_version("DV_001")
+    assert retrieved_dv["record_count"] == 1944
+
+
+def test_prediction_lineage_query(tmp_path):
+    from backend.app.database import create_data_foundation
+    database_url = sqlite_url(tmp_path / "lineage.db")
+    engine = build_engine(database_url)
+    Base.metadata.create_all(engine)
+
+    twin_id = "twin-lineage-01"
+    event = json.loads((ROOT / "contracts/examples/clinical-event.json").read_text())
+    event["twin_id"] = twin_id
+
+    app = database_app(database_url)
+    with TestClient(app) as client:
+        client.post("/api/v1/twins", json={"twin_id": twin_id})
+        client.post(f"/api/v1/twins/{twin_id}/events", json=event)
+        snap = client.post(f"/api/v1/twins/{twin_id}/snapshots").json()
+        pred = client.post(
+            f"/api/v1/twins/{twin_id}/snapshots/{snap['snapshot_id']}/predictions"
+        ).json()
+        pred_id = pred["prediction_id"]
+
+    foundation = create_data_foundation(database_url)
+    lineage = foundation.get_prediction_lineage(pred_id)
+    assert lineage is not None
+    assert lineage["prediction"]["prediction_id"] == pred_id
+    assert lineage["snapshot"]["snapshot_id"] == snap["snapshot_id"]
+    assert len(lineage["referenced_events"]) >= 1
+    assert lineage["referenced_events"][0]["event_id"] == event["event_id"]
+

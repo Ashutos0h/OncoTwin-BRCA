@@ -570,3 +570,116 @@ def test_feature_dict_covers_all_known_fields():
         "ki67_percent", "morphology_code",
     }
     assert set(FEATURE_DICT.keys()) == expected
+
+
+# ---------------------------------------------------------------------------
+# Patient, Encounter, DiagnosticReport, and Synthea Bundle tests
+# ---------------------------------------------------------------------------
+
+from data.src.fhir_adapter import (
+    patient_to_profile,
+    encounter_to_event,
+    diagnostic_report_to_events,
+    synthea_bundle_to_canonical,
+)
+
+
+class TestPatientAdapter:
+
+    def test_patient_to_profile_valid(self):
+        patient = {
+            "resourceType": "Patient",
+            "id": "pat-001",
+            "gender": "female",
+            "birthDate": "1975-08-20",
+            "identifier": [{"value": "MRN-123456"}],
+        }
+        profile = patient_to_profile(patient, twin_id="TWIN_001")
+        assert profile["patient_id"] == "pat-001"
+        assert profile["twin_id"] == "TWIN_001"
+        assert profile["gender"] == "female"
+        assert profile["birth_date"] == "1975-08-20"
+        assert profile["mrn"] == "MRN-123456"
+
+    def test_patient_wrong_resource_type(self):
+        with pytest.raises(ValueError, match="Expected resourceType 'Patient'"):
+            patient_to_profile({"resourceType": "Observation"})
+
+
+class TestEncounterAdapter:
+
+    def test_encounter_to_follow_up_event(self):
+        encounter = {
+            "resourceType": "Encounter",
+            "id": "enc-001",
+            "status": "finished",
+            "class": {"code": "AMB"},
+            "period": {"start": "2026-03-01T09:00:00Z"},
+            "reasonCode": [{"text": "Routine surveillance examination"}],
+        }
+        event = encounter_to_event(encounter, TWIN)
+        assert event["event_type"] == "FOLLOW_UP"
+        assert event["twin_id"] == TWIN
+        assert event["payload"]["encounter_class"] == "AMB"
+        validate_event(event)
+
+    def test_encounter_to_treatment_event(self):
+        encounter = {
+            "resourceType": "Encounter",
+            "id": "enc-002",
+            "status": "finished",
+            "class": {"code": "AMB"},
+            "period": {"start": "2026-03-01T09:00:00Z"},
+            "reasonCode": [{"text": "Adjuvant Chemotherapy Cycle 1"}],
+        }
+        event = encounter_to_event(encounter, TWIN)
+        assert event["event_type"] == "TREATMENT"
+        validate_event(event)
+
+
+class TestDiagnosticReportAdapter:
+
+    def test_diagnostic_report_contained_observations(self):
+        report = {
+            "resourceType": "DiagnosticReport",
+            "id": "dr-001",
+            "status": "final",
+            "effectiveDateTime": "2026-03-01T10:00:00Z",
+            "conclusion": "Invasive ductal carcinoma",
+            "conclusionCode": [
+                {"coding": [{"system": "http://hl7.org/fhir/sid/icd-o-3", "code": "8500/3"}]}
+            ],
+            "contained": [
+                {
+                    "resourceType": "Observation",
+                    "id": "obs-c-1",
+                    "status": "final",
+                    "code": {"coding": [{"system": "http://loinc.org", "code": "21889-1"}]},
+                    "valueQuantity": {"value": 18.0, "unit": "mm"},
+                }
+            ],
+        }
+        events = diagnostic_report_to_events(report, TWIN)
+        assert len(events) == 2  # 1 from contained observation, 1 from conclusion/diagnosis
+        for e in events:
+            validate_event(e)
+
+
+class TestSyntheaBundleCanonical:
+
+    def test_synthea_bundle_ingestion(self):
+        import json
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2]
+        bundle_path = root / "data" / "samples" / "synthea-patient-bundle.json"
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+
+        res = synthea_bundle_to_canonical(bundle)
+        assert res["patient_profile"] is not None
+        assert res["patient_profile"]["gender"] == "female"
+        assert len(res["events"]) >= 7  # Encounter + DR morphology + contained obs + 5 obs
+        assert res["skip_log"] == []
+        for e in res["events"]:
+            validate_event(e)
+
+

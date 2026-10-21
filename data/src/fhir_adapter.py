@@ -424,3 +424,275 @@ def bundle_to_events(bundle: dict, twin_id: str) -> tuple[list[dict], list[dict]
             )
 
     return events, skip_log
+
+
+# ---------------------------------------------------------------------------
+# Additional FHIR R4 Resource Adapters (Patient, Encounter, DiagnosticReport)
+# ---------------------------------------------------------------------------
+
+
+def patient_to_profile(patient: dict, twin_id: str | None = None) -> dict[str, Any]:
+    """
+    Extract demographic and administrative data from a FHIR R4 Patient resource
+    into a canonical PatientProfile dictionary.
+    """
+    if patient.get("resourceType") != "Patient":
+        raise ValueError(
+            f"Expected resourceType 'Patient', got '{patient.get('resourceType')}'"
+        )
+
+    patient_id = str(patient.get("id") or uuid.uuid4())
+    resolved_twin_id = twin_id or f"TWIN_{patient_id}"
+
+    mrn = None
+    for ident in patient.get("identifier", []):
+        type_codings = ident.get("type", {}).get("coding", [])
+        for c in type_codings:
+            if c.get("code") == "MR":
+                mrn = ident.get("value")
+                break
+        if not mrn and ident.get("value"):
+            mrn = ident.get("value")
+
+    raw_gender = patient.get("gender", "unknown")
+    gender = raw_gender.lower() if isinstance(raw_gender, str) else "unknown"
+    if gender not in ("female", "male", "other", "unknown"):
+        gender = "unknown"
+
+    birth_date = patient.get("birthDate")
+
+    return {
+        "patient_id": patient_id,
+        "twin_id": resolved_twin_id,
+        "mrn": mrn,
+        "gender": gender,
+        "birth_date": birth_date,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "metadata": {
+            "source_system": "fhir",
+            "active": patient.get("active", True),
+        },
+    }
+
+
+def encounter_to_event(encounter: dict, twin_id: str) -> dict[str, Any]:
+    """
+    Translate a FHIR R4 Encounter resource (inpatient, ambulatory, surveillance,
+    treatment) into a canonical ClinicalEvent dictionary.
+    """
+    if encounter.get("resourceType") != "Encounter":
+        raise ValueError(
+            f"Expected resourceType 'Encounter', got '{encounter.get('resourceType')}'"
+        )
+    if not twin_id or not isinstance(twin_id, str):
+        raise ValueError("twin_id must be a non-empty string")
+
+    enc_id = str(encounter.get("id") or uuid.uuid4())
+    status = encounter.get("status", "finished")
+    period = encounter.get("period", {})
+    effective_time = (
+        period.get("start")
+        or period.get("end")
+        or datetime.now(timezone.utc).isoformat()
+    )
+    meta = encounter.get("meta", {})
+    received_time = meta.get("lastUpdated") or datetime.now(timezone.utc).isoformat()
+    data_version = meta.get("versionId", "1")
+
+    # Class: e.g. AMB, IMP, EMER
+    enc_class_val = encounter.get("class", {})
+    if isinstance(enc_class_val, dict):
+        enc_class = enc_class_val.get("code", "AMB")
+    else:
+        enc_class = str(enc_class_val)
+
+    reasons: list[str] = []
+    for r in encounter.get("reasonCode", []):
+        text = r.get("text") or (
+            r.get("coding", [{}])[0].get("display") if r.get("coding") else None
+        )
+        if text:
+            reasons.append(str(text))
+    reason_str = "; ".join(reasons) if reasons else "surveillance"
+
+    text_check = (reason_str + " " + str(encounter.get("type", []))).lower()
+    if any(
+        k in text_check
+        for k in ("chemo", "radiation", "surgery", "mastectomy", "lumpectomy", "therapy")
+    ):
+        event_type = "TREATMENT"
+    else:
+        event_type = "FOLLOW_UP"
+
+    payload: dict[str, Any] = {
+        "encounter_id": enc_id,
+        "encounter_class": enc_class,
+        "status": status,
+        "reason": reason_str,
+    }
+
+    return {
+        "schema_version": "0.1.0",
+        "twin_id": twin_id,
+        "event_id": f"evt_enc_{enc_id}",
+        "event_type": event_type,
+        "effective_time": effective_time,
+        "received_time": received_time,
+        "source": "fhir_adapter",
+        "quality_status": "valid",
+        "provenance": {
+            "source_system": "fhir",
+            "source_record_id": enc_id,
+            "data_version": data_version,
+        },
+        "payload": payload,
+    }
+
+
+def diagnostic_report_to_events(report: dict, twin_id: str) -> list[dict[str, Any]]:
+    """
+    Translate a FHIR R4 DiagnosticReport resource into canonical ClinicalEvent dicts,
+    extracting contained observations, conclusions, and morphology codes.
+    """
+    if report.get("resourceType") != "DiagnosticReport":
+        raise ValueError(
+            f"Expected resourceType 'DiagnosticReport', got '{report.get('resourceType')}'"
+        )
+    if not twin_id or not isinstance(twin_id, str):
+        raise ValueError("twin_id must be a non-empty string")
+
+    events: list[dict[str, Any]] = []
+    rep_id = str(report.get("id") or uuid.uuid4())
+    effective_time = report.get("effectiveDateTime")
+    if not effective_time:
+        period = report.get("effectivePeriod", {})
+        effective_time = (
+            period.get("start")
+            or period.get("end")
+            or datetime.now(timezone.utc).isoformat()
+        )
+    meta = report.get("meta", {})
+    received_time = meta.get("lastUpdated") or datetime.now(timezone.utc).isoformat()
+    data_version = meta.get("versionId", "1")
+
+    # 1. Unpack contained Observations if present
+    for contained in report.get("contained", []):
+        if contained.get("resourceType") == "Observation":
+            try:
+                if not contained.get("effectiveDateTime") and not contained.get(
+                    "effectivePeriod"
+                ):
+                    contained["effectiveDateTime"] = effective_time
+                evt = observation_to_event(contained, twin_id)
+                events.append(evt)
+            except ValueError:
+                pass
+
+    # 2. Extract conclusion or morphology
+    conclusion = report.get("conclusion")
+    conclusion_code = report.get("conclusionCode", [])
+    morphology = None
+    if conclusion_code:
+        coding = conclusion_code[0].get("coding", [{}])
+        morphology = coding[0].get("code")
+
+    if morphology or conclusion:
+        payload: dict[str, Any] = {}
+        if morphology:
+            payload["morphology_code"] = str(morphology)
+        if conclusion:
+            payload["conclusion"] = str(conclusion)
+
+        events.append({
+            "schema_version": "0.1.0",
+            "twin_id": twin_id,
+            "event_id": f"evt_dr_{rep_id}",
+            "event_type": "DIAGNOSIS",
+            "effective_time": effective_time,
+            "received_time": received_time,
+            "source": "fhir_adapter",
+            "quality_status": "valid",
+            "provenance": {
+                "source_system": "fhir",
+                "source_record_id": rep_id,
+                "data_version": data_version,
+            },
+            "payload": payload,
+        })
+
+    return events
+
+
+def synthea_bundle_to_canonical(
+    bundle: dict, default_twin_id: str | None = None
+) -> dict[str, Any]:
+    """
+    Ingest a complete Synthea or clinical FHIR R4 Bundle containing Patient,
+    Encounter, DiagnosticReport, and Observation entries.
+
+    Returns
+    -------
+    dict with keys:
+      - patient_profile: PatientProfile dict or None
+      - events: list of canonical ClinicalEvent dicts
+      - skip_log: list of skipped resources with reason
+    """
+    if bundle.get("resourceType") != "Bundle":
+        raise ValueError(
+            f"Expected resourceType 'Bundle', got '{bundle.get('resourceType')}'"
+        )
+
+    patient_profile: dict[str, Any] | None = None
+    events: list[dict[str, Any]] = []
+    skip_log: list[dict[str, Any]] = []
+
+    twin_id = default_twin_id
+
+    # First pass: find Patient resource to establish twin identity
+    for entry in bundle.get("entry", []):
+        res = entry.get("resource", {})
+        if res.get("resourceType") == "Patient":
+            try:
+                patient_profile = patient_to_profile(res, twin_id=twin_id)
+                if not twin_id:
+                    twin_id = patient_profile["twin_id"]
+            except ValueError as exc:
+                skip_log.append({"resource_id": res.get("id", "patient"), "reason": str(exc)})
+            break
+
+    if not twin_id:
+        twin_id = f"TWIN_SYNTHEA_{uuid.uuid4().hex[:8]}"
+
+    # Second pass: process Encounters, DiagnosticReports, and Observations
+    for entry in bundle.get("entry", []):
+        res = entry.get("resource", {})
+        rtype = res.get("resourceType")
+
+        if rtype == "Observation":
+            try:
+                evt = observation_to_event(res, twin_id)
+                events.append(evt)
+            except ValueError as exc:
+                skip_log.append({"resource_id": res.get("id", "obs"), "reason": str(exc)})
+
+        elif rtype == "Encounter":
+            try:
+                evt = encounter_to_event(res, twin_id)
+                events.append(evt)
+            except ValueError as exc:
+                skip_log.append({"resource_id": res.get("id", "enc"), "reason": str(exc)})
+
+        elif rtype == "DiagnosticReport":
+            try:
+                dr_events = diagnostic_report_to_events(res, twin_id)
+                events.extend(dr_events)
+            except ValueError as exc:
+                skip_log.append({"resource_id": res.get("id", "dr"), "reason": str(exc)})
+
+    return {
+        "patient_profile": patient_profile,
+        "events": events,
+        "skip_log": skip_log,
+        "twin_id": twin_id,
+    }
+

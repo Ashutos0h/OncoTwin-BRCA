@@ -5,7 +5,20 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, JSON, String, create_engine, event, func, select
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    create_engine,
+    event,
+    func,
+    select,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -90,6 +103,78 @@ class AuditRecordRow(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     document: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT, nullable=False)
     __table_args__ = (Index("ix_audit_records_twin_id", "twin_id"),)
+
+
+class PatientProfileRow(Base):
+    __tablename__ = "patient_profiles"
+    patient_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    twin_id: Mapped[str] = mapped_column(
+        ForeignKey("twins.twin_id"), nullable=False, unique=True
+    )
+    gender: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
+    birth_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    mrn: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    document: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT, nullable=False)
+    __table_args__ = (Index("ix_patient_profiles_twin_id", "twin_id"),)
+
+
+class ObservationRow(Base):
+    __tablename__ = "observations"
+    observation_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    twin_id: Mapped[str] = mapped_column(ForeignKey("twins.twin_id"), nullable=False)
+    code: Mapped[str] = mapped_column(String(64), nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False, default="pathology")
+    effective_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="final")
+    document: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT, nullable=False)
+    __table_args__ = (
+        Index("ix_observations_twin_id", "twin_id"),
+        Index("ix_observations_code", "code"),
+        Index("ix_observations_effective_time", "effective_time"),
+    )
+
+
+class TumourProfileRow(Base):
+    __tablename__ = "tumour_profiles"
+    profile_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    twin_id: Mapped[str] = mapped_column(
+        ForeignKey("twins.twin_id"), nullable=False, unique=True
+    )
+    tumour_size_mm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    grade: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    positive_nodes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    her2_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    er_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    pr_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    document: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT, nullable=False)
+    __table_args__ = (Index("ix_tumour_profiles_twin_id", "twin_id"),)
+
+
+class ModelVersionRow(Base):
+    __tablename__ = "model_versions"
+    model_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    algorithm: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    document: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT, nullable=False)
+    __table_args__ = (Index("ix_model_versions_name_version", "name", "version"),)
+
+
+class DataVersionRow(Base):
+    __tablename__ = "data_versions"
+    data_version_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    dataset_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    document: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT, nullable=False)
+    __table_args__ = (Index("ix_data_versions_content_sha256", "content_sha256"),)
+
 
 
 SessionFactory = sessionmaker[Session]
@@ -422,6 +507,201 @@ class DatabasePredictionAuditStore:
             return [AuditRecord.model_validate(row.document) for row in rows], total
 
 
+class DatabaseDataFoundation:
+    """
+    Manages canonical entities (PatientProfile, Observation, TumourProfile,
+    ModelVersion, DataVersion) and advanced audit/lineage queries.
+    """
+
+    def __init__(self, sessions: SessionFactory) -> None:
+        self._sessions = sessions
+
+    def save_patient_profile(self, profile: dict[str, Any]) -> dict[str, Any]:
+        with self._sessions() as session:
+            pid = str(profile["patient_id"])
+            twin_id = str(profile["twin_id"])
+            existing = session.get(PatientProfileRow, pid)
+            if existing:
+                existing.gender = profile.get("gender", "unknown")
+                existing.birth_date = profile.get("birth_date")
+                existing.mrn = profile.get("mrn")
+                existing.document = profile
+            else:
+                row = PatientProfileRow(
+                    patient_id=pid,
+                    twin_id=twin_id,
+                    gender=profile.get("gender", "unknown"),
+                    birth_date=profile.get("birth_date"),
+                    mrn=profile.get("mrn"),
+                    created_at=datetime.now(timezone.utc),
+                    document=profile,
+                )
+                session.add(row)
+            session.commit()
+            return profile
+
+    def get_patient_profile(self, twin_id: str) -> dict[str, Any] | None:
+        with self._sessions() as session:
+            row = session.scalar(
+                select(PatientProfileRow).where(PatientProfileRow.twin_id == twin_id)
+            )
+            return dict(row.document) if row else None
+
+    def save_tumour_profile(self, profile: dict[str, Any]) -> dict[str, Any]:
+        with self._sessions() as session:
+            prof_id = str(profile["profile_id"])
+            twin_id = str(profile["twin_id"])
+            existing = session.get(TumourProfileRow, prof_id)
+            if existing:
+                existing.tumour_size_mm = profile.get("tumour_size_mm")
+                existing.grade = profile.get("grade")
+                existing.positive_nodes = profile.get("positive_nodes")
+                existing.her2_status = profile.get("her2_status")
+                existing.er_status = profile.get("er_status")
+                existing.pr_status = profile.get("pr_status")
+                existing.updated_at = datetime.now(timezone.utc)
+                existing.document = profile
+            else:
+                row = TumourProfileRow(
+                    profile_id=prof_id,
+                    twin_id=twin_id,
+                    tumour_size_mm=profile.get("tumour_size_mm"),
+                    grade=profile.get("grade"),
+                    positive_nodes=profile.get("positive_nodes"),
+                    her2_status=profile.get("her2_status"),
+                    er_status=profile.get("er_status"),
+                    pr_status=profile.get("pr_status"),
+                    updated_at=datetime.now(timezone.utc),
+                    document=profile,
+                )
+                session.add(row)
+            session.commit()
+            return profile
+
+    def get_tumour_profile(self, twin_id: str) -> dict[str, Any] | None:
+        with self._sessions() as session:
+            row = session.scalar(
+                select(TumourProfileRow).where(TumourProfileRow.twin_id == twin_id)
+            )
+            return dict(row.document) if row else None
+
+    def save_observation(self, obs: dict[str, Any]) -> dict[str, Any]:
+        with self._sessions() as session:
+            obs_id = str(obs["observation_id"])
+            eff_str = obs.get("effective_time")
+            try:
+                eff_dt = datetime.fromisoformat(str(eff_str).replace("Z", "+00:00"))
+            except Exception:
+                eff_dt = datetime.now(timezone.utc)
+
+            row = ObservationRow(
+                observation_id=obs_id,
+                twin_id=str(obs["twin_id"]),
+                code=str(obs["code"]),
+                category=str(obs.get("category", "pathology")),
+                effective_time=eff_dt,
+                status=str(obs.get("status", "final")),
+                document=obs,
+            )
+            session.add(row)
+            session.commit()
+            return obs
+
+    def list_observations(self, twin_id: str) -> list[dict[str, Any]]:
+        with self._sessions() as session:
+            rows = session.scalars(
+                select(ObservationRow)
+                .where(ObservationRow.twin_id == twin_id)
+                .order_by(ObservationRow.effective_time.asc())
+            ).all()
+            return [dict(r.document) for r in rows]
+
+    def register_model_version(self, model_data: dict[str, Any]) -> dict[str, Any]:
+        with self._sessions() as session:
+            mid = str(model_data["model_id"])
+            row = ModelVersionRow(
+                model_id=mid,
+                name=str(model_data["name"]),
+                version=str(model_data["version"]),
+                algorithm=str(model_data["algorithm"]),
+                created_at=datetime.now(timezone.utc),
+                active=bool(model_data.get("active", True)),
+                document=model_data,
+            )
+            session.add(row)
+            session.commit()
+            return model_data
+
+    def get_model_version(self, name: str, version: str) -> dict[str, Any] | None:
+        with self._sessions() as session:
+            row = session.scalar(
+                select(ModelVersionRow).where(
+                    ModelVersionRow.name == name, ModelVersionRow.version == version
+                )
+            )
+            return dict(row.document) if row else None
+
+    def register_data_version(self, version_data: dict[str, Any]) -> dict[str, Any]:
+        with self._sessions() as session:
+            dvid = str(version_data["data_version_id"])
+            row = DataVersionRow(
+                data_version_id=dvid,
+                name=str(version_data["name"]),
+                dataset_name=str(version_data.get("dataset_name", "METABRIC")),
+                record_count=int(version_data.get("record_count", 0)),
+                content_sha256=str(version_data["content_sha256"]),
+                created_at=datetime.now(timezone.utc),
+                document=version_data,
+            )
+            session.add(row)
+            session.commit()
+            return version_data
+
+    def get_data_version(self, data_version_id: str) -> dict[str, Any] | None:
+        with self._sessions() as session:
+            row = session.get(DataVersionRow, data_version_id)
+            return dict(row.document) if row else None
+
+    def get_prediction_lineage(self, prediction_id: str) -> dict[str, Any] | None:
+        """
+        Retrieves the complete provenance lineage for a prediction:
+        Prediction -> Snapshot -> Twin State -> Audit Record -> Input Events.
+        """
+        with self._sessions() as session:
+            pred_row = session.get(PredictionRow, prediction_id)
+            if not pred_row:
+                return None
+
+            pred_doc = dict(pred_row.document)
+            snap_id = pred_row.snapshot_id
+            snap_row = session.get(FeatureSnapshotRow, snap_id)
+            snap_doc = dict(snap_row.document) if snap_row else None
+
+            audit_row = session.scalar(
+                select(AuditRecordRow).where(AuditRecordRow.prediction_id == prediction_id)
+            )
+            audit_doc = dict(audit_row.document) if audit_row else None
+
+            # Retrieve input clinical events referenced by snapshot
+            event_ids = snap_row.event_ids if snap_row else []
+            events = []
+            if event_ids:
+                event_rows = session.scalars(
+                    select(ClinicalEventRow).where(ClinicalEventRow.event_id.in_(event_ids))
+                ).all()
+                events = [dict(e.document) for e in event_rows]
+
+            return {
+                "prediction": pred_doc,
+                "snapshot": snap_doc,
+                "audit": audit_doc,
+                "referenced_events": events,
+                "state_version": pred_doc.get("state_version"),
+                "model_version": pred_doc.get("model_version"),
+                "data_version": pred_doc.get("data_version"),
+            }
+
+
 def create_database_stores(database_url: str, *, inference: InferenceEngine | None = None):
     engine = build_engine(database_url)
     sessions = build_session_factory(engine)
@@ -430,3 +710,10 @@ def create_database_stores(database_url: str, *, inference: InferenceEngine | No
         DatabaseSnapshotStore(sessions),
         DatabasePredictionAuditStore(sessions, inference=inference),
     )
+
+
+def create_data_foundation(database_url: str) -> DatabaseDataFoundation:
+    engine = build_engine(database_url)
+    sessions = build_session_factory(engine)
+    return DatabaseDataFoundation(sessions)
+

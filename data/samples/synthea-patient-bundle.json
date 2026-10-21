@@ -1,0 +1,134 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "synthea-patient-001",
+        "active": true,
+        "name": [{"use": "official", "family": "Smith", "given": ["Jane"]}],
+        "gender": "female",
+        "birthDate": "1972-04-15",
+        "identifier": [
+          {
+            "system": "http://hospital.smarthealth.org",
+            "type": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]},
+            "value": "MRN-SYNTHEA-789012"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "synthea-enc-surv-001",
+        "status": "finished",
+        "class": {"code": "AMB", "display": "ambulatory"},
+        "type": [{"text": "Outpatient Breast Surveillance Visit"}],
+        "period": {
+          "start": "2026-03-10T09:00:00Z",
+          "end": "2026-03-10T10:00:00Z"
+        },
+        "reasonCode": [{"text": "Routine post-surgical oncology follow-up"}]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "synthea-dr-path-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "11526-1", "display": "Pathology study"}]
+        },
+        "effectiveDateTime": "2026-03-10T10:30:00Z",
+        "conclusion": "Invasive ductal carcinoma, Nottingham grade 2",
+        "conclusionCode": [
+          {
+            "coding": [{"system": "http://hl7.org/fhir/sid/icd-o-3", "code": "8500/3", "display": "Infiltrating duct carcinoma, NOS"}]
+          }
+        ],
+        "contained": [
+          {
+            "resourceType": "Observation",
+            "id": "synthea-obs-dr-size",
+            "status": "final",
+            "code": {
+              "coding": [{"system": "http://loinc.org", "code": "21889-1", "display": "Size Tumor"}]
+            },
+            "valueQuantity": {"value": 24.5, "unit": "mm"}
+          },
+          {
+            "resourceType": "Observation",
+            "id": "synthea-obs-dr-grade",
+            "status": "final",
+            "code": {
+              "coding": [{"system": "http://loinc.org", "code": "33732-9", "display": "Histologic grade"}]
+            },
+            "valueQuantity": {"value": 2}
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthea-obs-nodes-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "21893-3", "display": "Regional lymph nodes positive"}]
+        },
+        "effectiveDateTime": "2026-03-10T11:00:00Z",
+        "valueQuantity": {"value": 1}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthea-obs-her2-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "85319-2", "display": "HER2 IHC"}]
+        },
+        "effectiveDateTime": "2026-03-10T11:00:00Z",
+        "valueCodeableConcept": {"text": "negative"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthea-obs-er-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "85337-4", "display": "ER IHC"}]
+        },
+        "effectiveDateTime": "2026-03-10T11:00:00Z",
+        "valueCodeableConcept": {"text": "positive"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthea-obs-pr-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "85347-3", "display": "PR IHC"}]
+        },
+        "effectiveDateTime": "2026-03-10T11:00:00Z",
+        "valueCodeableConcept": {"text": "positive"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthea-obs-ki67-001",
+        "status": "final",
+        "code": {
+          "coding": [{"system": "http://loinc.org", "code": "59847-4", "display": "Ki-67 %"}]
+        },
+        "effectiveDateTime": "2026-03-10T11:00:00Z",
+        "valueQuantity": {"value": 15.0, "unit": "%"}
+      }
+    }
+  ]
+}

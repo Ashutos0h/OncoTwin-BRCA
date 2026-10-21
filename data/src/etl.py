@@ -73,7 +73,11 @@ def _validate_record(record: dict[str, Any], index: int) -> list[str]:
         )
 
     # Check for unrecognised keys (warn, don't reject — schema is extensible)
-    unknown = set(record.keys()) - FEATURE_KEYS - {"twin_id", "record_id", "timestamp", "effective_time"}
+    unknown = (
+        set(record.keys())
+        - FEATURE_KEYS
+        - {"twin_id", "record_id", "timestamp", "effective_time", "recurrence_5yr", "_missing_mask"}
+    )
     if unknown:
         warnings.append(f"Record {index}: unknown keys {sorted(unknown)} (ignored)")
 
@@ -398,3 +402,308 @@ def patient_level_train_test_split(
             train_records.extend(patient_records[pid])
 
     return train_records, test_records
+
+
+# ---------------------------------------------------------------------------
+# Extended ETL Pipeline: Normalization, Missingness Masks, and 3-Way Splitting
+# ---------------------------------------------------------------------------
+
+
+def _is_none_or_nan(val: Any) -> bool:
+    if val is None:
+        return True
+    if isinstance(val, float) and (val != val):  # IEEE NaN check
+        return True
+    if isinstance(val, str) and val.strip().lower() in ("nan", "none", "null", ""):
+        return True
+    return False
+
+
+def clean_and_normalize_record(
+    record: dict[str, Any], index: int = 0
+) -> tuple[dict[str, Any], list[str]]:
+    """
+    Cleans and normalizes a single cohort record:
+      - Unit normalization (cm → mm if indicated, lowercases categorical IHC)
+      - Nottingham grade integer normalization
+      - Missingness mask generation
+      - Timestamp standardization
+    """
+    cleaned: dict[str, Any] = {}
+    notes: list[str] = []
+
+    # Preserve identifiers
+    cleaned["twin_id"] = str(record.get("twin_id") or f"TWIN_PATIENT_{index+1:04d}")
+    if "record_id" in record:
+        cleaned["record_id"] = str(record["record_id"])
+
+    # Effective time normalization
+    raw_time = record.get("effective_time") or record.get("timestamp")
+    if raw_time and not _is_none_or_nan(raw_time):
+        try:
+            dt = datetime.fromisoformat(str(raw_time).replace("Z", "+00:00"))
+            cleaned["effective_time"] = dt.isoformat()
+        except Exception:
+            cleaned["effective_time"] = datetime.now(timezone.utc).isoformat()
+    else:
+        cleaned["effective_time"] = datetime.now(timezone.utc).isoformat()
+
+    # Tumour size (mm)
+    raw_size = record.get("tumour_size_mm")
+    if not _is_none_or_nan(raw_size):
+        try:
+            val_size = float(raw_size)
+            if val_size < 0:
+                raise CohortValidationError(f"Negative tumour size {val_size}")
+            cleaned["tumour_size_mm"] = round(val_size, 2)
+        except ValueError:
+            raise CohortValidationError(f"Invalid tumour size {raw_size}")
+    else:
+        cleaned["tumour_size_mm"] = None
+
+    # Histologic grade (1-4)
+    raw_grade = record.get("grade")
+    if not _is_none_or_nan(raw_grade):
+        try:
+            val_grade = int(float(raw_grade))
+            if val_grade not in _VALID_GRADES:
+                raise CohortValidationError(f"Invalid grade {val_grade}; must be 1-4")
+            cleaned["grade"] = val_grade
+        except (ValueError, TypeError):
+            raise CohortValidationError(f"Grade must be integer 1-4, got {raw_grade}")
+    else:
+        cleaned["grade"] = None
+
+    # Positive lymph nodes
+    raw_nodes = record.get("positive_nodes")
+    if not _is_none_or_nan(raw_nodes):
+        try:
+            val_nodes = int(float(raw_nodes))
+            if val_nodes < 0:
+                raise CohortValidationError(f"Negative lymph nodes {val_nodes}")
+            cleaned["positive_nodes"] = val_nodes
+        except (ValueError, TypeError):
+            raise CohortValidationError(f"Invalid node count {raw_nodes}")
+    else:
+        cleaned["positive_nodes"] = None
+
+    # IHC Receptors
+    for field in ("her2_status", "er_status", "pr_status"):
+        raw_val = record.get(field)
+        if not _is_none_or_nan(raw_val):
+            s_val = str(raw_val).strip().lower()
+            if s_val in ("pos", "positive", "3", "3+"):
+                cleaned[field] = "positive"
+            elif s_val in ("neg", "negative", "0", "0+", "1", "1+"):
+                cleaned[field] = "negative"
+            elif s_val in ("equivocal", "indeterminate", "2", "2+"):
+                cleaned[field] = "equivocal" if field == "her2_status" else "negative"
+            else:
+                raise CohortValidationError(f"Unsupported {field} value: {raw_val}")
+        else:
+            cleaned[field] = None
+
+    # Ki-67 percent
+    raw_ki67 = record.get("ki67_percent")
+    if not _is_none_or_nan(raw_ki67):
+        try:
+            val_ki67 = float(raw_ki67)
+            if not (0.0 <= val_ki67 <= 100.0):
+                raise CohortValidationError(f"Ki-67 percentage must be 0-100, got {val_ki67}")
+            cleaned["ki67_percent"] = round(val_ki67, 2)
+        except (ValueError, TypeError):
+            raise CohortValidationError(f"Invalid Ki-67 value {raw_ki67}")
+    else:
+        cleaned["ki67_percent"] = None
+
+    # Morphology code
+    raw_morph = record.get("morphology_code")
+    cleaned["morphology_code"] = (
+        str(raw_morph).strip() if not _is_none_or_nan(raw_morph) else None
+    )
+
+    # Preserve outcome label if present (e.g. recurrence_5yr)
+    if "recurrence_5yr" in record:
+        cleaned["recurrence_5yr"] = int(record["recurrence_5yr"])
+
+    # Generate binary missingness mask (1 = missing, 0 = present)
+    mask = {k: (1 if cleaned.get(k) is None else 0) for k in FEATURE_KEYS}
+    cleaned["_missing_mask"] = mask
+
+    return cleaned, notes
+
+
+def run_full_etl_pipeline(
+    raw_records: list[dict[str, Any]],
+    source_name: str = "synthetic",
+    data_version: str = "v1.0.0",
+) -> dict[str, Any]:
+    """
+    Executes the complete canonical ETL pipeline:
+      Raw Dataset
+          ↓
+      Schema Validation
+          ↓
+      Cleaning & Duplicate Removal
+          ↓
+      Normalization
+          ↓
+      Missingness Detection & Masking
+          ↓
+      Canonical Mapping (ClinicalEvents)
+          ↓
+      Feature Dataset
+
+    Returns a comprehensive result dictionary with cleaned records,
+    missingness rates, missingness masks, canonical events, and SHA-256 fingerprint.
+    """
+    import hashlib
+
+    # 1. Deduplicate by unique patient or record ID
+    seen_ids: set[str] = set()
+    deduped_raw: list[dict[str, Any]] = []
+    for r in raw_records:
+        uid = str(r.get("twin_id") or r.get("record_id") or id(r))
+        if uid not in seen_ids:
+            seen_ids.add(uid)
+            deduped_raw.append(r)
+
+    # 2. Cleaning and Normalization
+    cleaned_records: list[dict[str, Any]] = []
+    all_warnings: list[str] = []
+    for idx, r in enumerate(deduped_raw):
+        cleaned_rec, notes = clean_and_normalize_record(r, idx)
+        all_warnings.extend(notes)
+        w = _validate_record(cleaned_rec, idx)
+        all_warnings.extend(w)
+        cleaned_records.append(cleaned_rec)
+
+    # 3. Missingness Detection
+    missingness_rates = compute_missingness(cleaned_records)
+
+    # 4. Canonical Mapping (to ClinicalEvents)
+    events = cohort_to_events(cleaned_records, source_system=f"{source_name}_etl")
+
+    # 5. Compute SHA-256 fingerprint for data versioning
+    serialized = json.dumps(cleaned_records, sort_keys=True, default=str).encode("utf-8")
+    content_hash = hashlib.sha256(serialized).hexdigest()
+
+    return {
+        "source": source_name,
+        "data_version": data_version,
+        "content_sha256": content_hash,
+        "total_records": len(cleaned_records),
+        "cleaned_records": cleaned_records,
+        "missingness_rates": missingness_rates,
+        "canonical_events": events,
+        "warnings": all_warnings,
+    }
+
+
+def patient_level_three_way_split(
+    records: list[dict[str, Any]],
+    patient_id_key: str = "twin_id",
+    train_ratio: float = 0.70,
+    val_ratio: float = 0.15,
+    test_ratio: float = 0.15,
+    seed: int = 42,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Strict 3-way partition (train, validation, test) enforced at the patient level.
+
+    Anti-Leakage Guarantees:
+      - set(train) ∩ set(val) == ∅
+      - set(train) ∩ set(test) == ∅
+      - set(val) ∩ set(test) == ∅
+      - Total patients partitioned = 100% of unique patients.
+    """
+    total_ratio = train_ratio + val_ratio + test_ratio
+    if abs(total_ratio - 1.0) > 1e-4:
+        raise ValueError(f"Ratios must sum to 1.0 (got {total_ratio})")
+
+    # Group by patient
+    patient_records: dict[str, list[dict[str, Any]]] = {}
+    for idx, rec in enumerate(records):
+        pid = rec.get(patient_id_key)
+        if not pid:
+            raise ValueError(f"Record {idx} lacks patient key '{patient_id_key}'")
+        patient_records.setdefault(str(pid), []).append(rec)
+
+    unique_patients = sorted(patient_records.keys())
+    n_patients = len(unique_patients)
+    if n_patients < 3:
+        raise ValueError(
+            f"3-way split requires at least 3 unique patients, found {n_patients}"
+        )
+
+    rng = random.Random(seed)
+    shuffled_patients = list(unique_patients)
+    rng.shuffle(shuffled_patients)
+
+    n_val = max(1, int(round(n_patients * val_ratio)))
+    n_test = max(1, int(round(n_patients * test_ratio)))
+    n_train = n_patients - n_val - n_test
+    if n_train < 1:
+        n_train = 1
+        if n_val > 1:
+            n_val -= 1
+        elif n_test > 1:
+            n_test -= 1
+
+    val_pids = set(shuffled_patients[:n_val])
+    test_pids = set(shuffled_patients[n_val : n_val + n_test])
+    train_pids = set(shuffled_patients[n_val + n_test :])
+
+    # Zero-leakage verification
+    assert not (train_pids & val_pids), "Leakage between train and validation!"
+    assert not (train_pids & test_pids), "Leakage between train and test!"
+    assert not (val_pids & test_pids), "Leakage between validation and test!"
+
+    train_recs: list[dict[str, Any]] = []
+    val_recs: list[dict[str, Any]] = []
+    test_recs: list[dict[str, Any]] = []
+
+    for pid in shuffled_patients:
+        recs = patient_records[pid]
+        if pid in train_pids:
+            train_recs.extend(recs)
+        elif pid in val_pids:
+            val_recs.extend(recs)
+        else:
+            test_recs.extend(recs)
+
+    return train_recs, val_recs, test_recs
+
+
+def generate_cohort_statistics(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Computes summary cohort statistics including sample size, grade distribution,
+    IHC positive rates, and missingness rates.
+    """
+    if not records:
+        return {"n_records": 0}
+
+    n = len(records)
+    grades = [r.get("grade") for r in records if r.get("grade") is not None]
+    her2_pos = sum(1 for r in records if r.get("her2_status") == "positive")
+    er_pos = sum(1 for r in records if r.get("er_status") == "positive")
+    pr_pos = sum(1 for r in records if r.get("pr_status") == "positive")
+
+    sizes = [
+        float(r["tumour_size_mm"])
+        for r in records
+        if r.get("tumour_size_mm") is not None
+    ]
+    mean_size = sum(sizes) / len(sizes) if sizes else 0.0
+
+    return {
+        "n_patients": len(set(r.get("twin_id", str(i)) for i, r in enumerate(records))),
+        "n_records": n,
+        "mean_tumour_size_mm": round(mean_size, 2),
+        "grade_counts": {g: grades.count(g) for g in (1, 2, 3, 4)},
+        "her2_positive_count": her2_pos,
+        "er_positive_count": er_pos,
+        "pr_positive_count": pr_pos,
+        "missingness": compute_missingness(records),
+    }
+
