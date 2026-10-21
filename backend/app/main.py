@@ -104,14 +104,18 @@ def create_app(
         meta_file = Path(__file__).resolve().parents[2] / "ml" / "models" / "model_metadata.json"
         if meta_file.exists():
             try:
-                return _json.loads(meta_file.read_text(encoding="utf-8"))
+                data = _json.loads(meta_file.read_text(encoding="utf-8"))
+                data.setdefault("status", "ok")
+                data["inference_mode"] = ml_inference_mode
+                return data
             except Exception:
                 pass
         return {
             "model_name": "constant-demo",
             "model_version": "mock-0.1.0",
             "is_mock": True,
-            "status": "mock_fallback",
+            "status": "ok",
+            "inference_mode": ml_inference_mode,
         }
 
     @application.get(

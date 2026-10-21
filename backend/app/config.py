@@ -49,7 +49,11 @@ class Settings:
             reader_api_key=os.getenv("READER_API_KEY") or None,
             writer_api_key=os.getenv("WRITER_API_KEY") or None,
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
-            ml_inference_mode=os.getenv("ML_INFERENCE_MODE", "mock").strip().lower(),
+            ml_inference_mode=(
+                os.getenv("ML_INFERENCE_MODE")
+                or os.getenv("ONCOTWIN_ML_INFERENCE_MODE")
+                or "mock"
+            ).strip().lower(),
         )
         settings.validate()
         return settings
