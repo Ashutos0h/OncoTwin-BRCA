@@ -24,5 +24,6 @@ Thumbs.db
 data/raw/
 data/processed/
 data/exports/
+DataSet/
 ml/artifacts/*
 !ml/artifacts/.gitkeep
